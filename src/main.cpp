@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "config.h"
+#include "Settings.h"
 #include "ModuleManager.h"
 #include "DisplayManager.h"
 #include "Sensor.h"
@@ -12,6 +13,7 @@
 #include "VentilationFan.h"
 #include "LEDGrowLight.h"
 #include "ESP32CAM.h"
+#include "GreenhouseServer.h"
 
 // ============================================================================
 // SYSTEM-LEVEL CONTROL LOGIC
@@ -23,11 +25,9 @@ void updateSensors();
 void updateControlLogic();
 void printSystemStatus();
 
-// State tracking for fan control (avoid repeated on/off)
-static bool _fanIsOn = false;
-
-// State tracking for pump control (avoid repeated on/off)
-static bool _pumpIsOn = false;
+// Note: actuator on()/off() are idempotent and self-debounce their internal
+// state, so main.cpp no longer caches _pumpIsOn / _fanIsOn — we just call the
+// methods directly and let the actuator decide whether anything changed.
 
 // State tracking for display button
 static unsigned long _lastButtonPressTime = 0;
@@ -51,8 +51,24 @@ void setup()
     Serial.println("========================================\n");
   }
 
+  // Restore persisted thresholds + mode (must happen before module init so
+  // module-side defaults can use the loaded values if they care).
+  Settings::instance().load();
+
   // Initialize and detect all modules
   initializeSystem();
+
+  // One-time camera time-lapse setup (10-minute interval). The control loop
+  // previously did this lazily, which made the intent harder to follow.
+  ModuleManager &manager = ModuleManager::getInstance();
+  if (manager.isModuleAvailable(MODULE_ESP32_CAM))
+  {
+    ESP32CAM *cam = (ESP32CAM *)manager.getModule(MODULE_ESP32_CAM);
+    if (cam) cam->setAutoCapInterval(600000);
+  }
+
+  // Start WiFi + REST API for the dashboard
+  GreenhouseServer::instance().begin();
 
   // Print initial system status
   if (DEBUG_ENABLED)
@@ -87,6 +103,13 @@ void loop()
   // Update OLED display (every 100ms)
   DisplayManager &display = DisplayManager::getInstance();
   display.update();
+
+  // Serve any pending HTTP requests from the dashboard
+  GreenhouseServer::instance().handle();
+
+  // Persist any pending settings changes (debounced, so rapid slider drags
+  // coalesce into one flash write).
+  Settings::instance().flushIfDue();
 
   // Execute control logic based on sensor readings
   updateControlLogic();
@@ -141,186 +164,84 @@ void initializeSystem()
 void updateControlLogic()
 {
   ModuleManager &manager = ModuleManager::getInstance();
+  Settings &cfg = Settings::instance();
+
+  // ========== MANUAL MODE ==========
+  // In manual mode the dashboard owns the actuators; skip automation and
+  // mirror the latest manual commands. on()/off() are idempotent so the
+  // "are we already in the right state?" check is just an optimisation to
+  // avoid spamming logs.
+  if (cfg.mode == MODE_MANUAL)
+  {
+    Actuator *p = manager.getActuator(MODULE_PUMP);
+    Actuator *f = manager.getActuator(MODULE_FAN);
+    Actuator *l = manager.getActuator(MODULE_LED_LIGHT);
+    if (p) { cfg.manualPump ? p->on() : p->off(); }
+    if (f) { cfg.manualFan  ? f->on() : f->off(); }
+    if (l) { cfg.manualLed  ? l->on() : l->off(); }
+    return;
+  }
 
   // ========== IRRIGATION CONTROL ==========
-  // Turn on pump if soil is dry
+  // Hysteresis: pump runs while raw is past the dry threshold and stops only
+  // once it crosses the wet threshold. Polarity is auto-detected so a sensor
+  // wired the opposite way (wet>dry) still works.
   if (manager.isModuleAvailable(MODULE_SOIL_MOISTURE) &&
       manager.isModuleAvailable(MODULE_PUMP))
   {
-
-    Sensor *moistureSensor = manager.getSensor(MODULE_SOIL_MOISTURE);
+    SoilMoistureSensor *soil = (SoilMoistureSensor *)manager.getSensor(MODULE_SOIL_MOISTURE);
     Actuator *pump = manager.getActuator(MODULE_PUMP);
 
-    if (moistureSensor && pump)
+    if (soil && pump)
     {
-      SoilMoistureSensor *soil = (SoilMoistureSensor *)moistureSensor;
+      uint16_t raw = soil->getRawValue();
+      bool dryPolarity = cfg.soilDryThreshold < cfg.soilWetThreshold;
+      bool isDry = dryPolarity ? (raw <= cfg.soilDryThreshold) : (raw >= cfg.soilDryThreshold);
+      bool isWet = dryPolarity ? (raw >= cfg.soilWetThreshold) : (raw <= cfg.soilWetThreshold);
 
-      if (DEBUG_ENABLED)
-      {
-        static unsigned long lastPumpDebug = 0;
-        if (millis() - lastPumpDebug > 5000) // Debug every 5 seconds
-        {
-          Serial.print("[Pump Control] Soil Raw: ");
-          Serial.print(soil->getRawValue());
-          Serial.print(" | Dry Threshold: ");
-          Serial.print(SOIL_MOISTURE_DRY_THRESHOLD);
-          Serial.print(" | Wet Threshold: ");
-          Serial.print(SOIL_MOISTURE_WET_THRESHOLD);
-          Serial.print(" | isDry: ");
-          Serial.print(soil->isDry());
-          Serial.print(" | isWet: ");
-          Serial.println(soil->isWet());
-          lastPumpDebug = millis();
-        }
-      }
-
-      // Check if soil is dry - only turn on if not already on
-      if (soil->isDry() && !_pumpIsOn)
-      {
-        pump->on();
-        _pumpIsOn = true;
-        if (DEBUG_ENABLED)
-        {
-          Serial.println("[Pump] Turned ON (soil dry)");
-        }
-      }
-      // Turn off pump if soil is wet - only turn off if not already off
-      else if (soil->isWet() && _pumpIsOn)
-      {
-        pump->off();
-        _pumpIsOn = false;
-        if (DEBUG_ENABLED)
-        {
-          Serial.println("[Pump] Turned OFF (soil wet)");
-        }
-      }
+      if (isDry) pump->on();
+      else if (isWet) pump->off();
     }
   }
 
   // ========== VENTILATION/FAN CONTROL ==========
-  // Turn fan on if humidity is high OR temperature is high
-  static unsigned long lastFanDebug = 0;
-  bool dhtAvailable = manager.isModuleAvailable(MODULE_DHT);
-  bool fanAvailable = manager.isModuleAvailable(MODULE_FAN);
-
-  if (dhtAvailable && fanAvailable)
+  if (manager.isModuleAvailable(MODULE_DHT) && manager.isModuleAvailable(MODULE_FAN))
   {
-    Sensor *dhtSensor = manager.getSensor(MODULE_DHT);
-    Actuator *fanActuator = manager.getActuator(MODULE_FAN);
+    DHTSensor *dht = (DHTSensor *)manager.getSensor(MODULE_DHT);
+    VentilationFan *fan = (VentilationFan *)manager.getActuator(MODULE_FAN);
 
-    if (dhtSensor && fanActuator)
+    if (dht && fan)
     {
-      DHTSensor *dht = (DHTSensor *)dhtSensor;
-      VentilationFan *fan = (VentilationFan *)fanActuator;
-
-      float temp = dht->getTemperature();
-      float humidity = dht->getHumidity();
-      bool tempHigh = dht->isTemperatureHigh();
-      bool humidityHigh = dht->isHumidityHigh();
+      bool tempHigh = dht->getTemperature() > (float)cfg.tempHigh;
+      bool humidityHigh = dht->getHumidity() > (float)cfg.humidityHigh;
       bool shouldRunFan = (humidityHigh || tempHigh);
 
-      // Debug output every 5 seconds
-      if (DEBUG_ENABLED && millis() - lastFanDebug > 5000)
-      {
-        Serial.print("[Fan Control] Temp: ");
-        Serial.print(temp);
-        Serial.print("°C (high:");
-        Serial.print(tempHigh ? "Y" : "N");
-        Serial.print("), Humidity: ");
-        Serial.print(humidity);
-        Serial.print("% (high:");
-        Serial.print(humidityHigh ? "Y" : "N");
-        Serial.print("), shouldRun: ");
-        Serial.print(shouldRunFan ? "Y" : "N");
-        Serial.print(", _fanIsOn: ");
-        Serial.println(_fanIsOn ? "Y" : "N");
-        lastFanDebug = millis();
-      }
-
-      if (shouldRunFan && !_fanIsOn)
-      {
-        if (DEBUG_ENABLED)
-        {
-          Serial.print("[Main] *** Calling fan.on() - shouldRunFan=true, fanIsOn=false ***");
-          Serial.print(" | Fan available: ");
-          Serial.println(fan->isAvailable());
-        }
-        fan->on();
-        _fanIsOn = true;
-        if (DEBUG_ENABLED)
-        {
-          Serial.println("[Main] Fan: ON (high humidity/temperature)");
-        }
-      }
-      else if (!shouldRunFan && _fanIsOn)
-      {
-        fan->off();
-        _fanIsOn = false;
-        if (DEBUG_ENABLED)
-        {
-          Serial.println("[Main] Fan: OFF (conditions normalized)");
-        }
-      }
+      if (shouldRunFan) fan->on();
+      else fan->off();
     }
-  }
-  else if (DEBUG_ENABLED && millis() - lastFanDebug > 10000)
-  {
-    Serial.print("[Fan Debug] DHT available: ");
-    Serial.print(dhtAvailable);
-    Serial.print(", Fan available: ");
-    Serial.println(fanAvailable);
-    lastFanDebug = millis();
   }
 
   // ========== SUPPLEMENTAL LIGHTING CONTROL ==========
-  // Turn on LED light if ambient light is insufficient
   if (manager.isModuleAvailable(MODULE_LIGHT_SENSOR) &&
       manager.isModuleAvailable(MODULE_LED_LIGHT))
   {
-
     Sensor *lightSensor = manager.getSensor(MODULE_LIGHT_SENSOR);
-    Actuator *ledLight = manager.getActuator(MODULE_LED_LIGHT);
+    LEDGrowLight *ledLight = (LEDGrowLight *)manager.getActuator(MODULE_LED_LIGHT);
 
     if (lightSensor && ledLight)
     {
-      // Support both BH1750 and PhotoresistorSensor
+      // Polarity differs between sensor types:
+      //   Photoresistor: higher raw value = darker, so need light when value > threshold
+      //   BH1750: returns actual lux, so need light when value < threshold
+      float reading = lightSensor->getValue();
+      bool needsLight;
 #if USE_BH1750_LIGHT_SENSOR
-      BH1750Sensor *bh1750 = (BH1750Sensor *)lightSensor;
-      if (bh1750->needsSupplementalLight())
-      {
-        ledLight->on();
-        ((LEDGrowLight *)ledLight)->setBrightness(200); // 78% brightness
-      }
-      else
-      {
-        ledLight->off();
-      }
-#elif USE_PHOTORESISTOR_LIGHT_SENSOR
-      PhotoresistorSensor *photoresistor = (PhotoresistorSensor *)lightSensor;
-      if (photoresistor->needsSupplementalLight())
-      {
-        ledLight->on();
-        ((LEDGrowLight *)ledLight)->setBrightness(200); // 78% brightness
-      }
-      else
-      {
-        ledLight->off();
-      }
+      needsLight = reading < (float)cfg.lightLow;
+#else
+      needsLight = reading > (float)cfg.lightLow;
 #endif
-    }
-  }
-
-  // ========== CAMERA TIME-LAPSE ==========
-  // Enable automatic image capture every 10 minutes
-  if (manager.isModuleAvailable(MODULE_ESP32_CAM))
-  {
-    Module *camModule = manager.getModule(MODULE_ESP32_CAM);
-    ESP32CAM *cam = (ESP32CAM *)camModule;
-
-    // Set 10-minute interval (600000 ms) if not already set
-    if (cam->getLastCaptureTime() == 0)
-    {
-      cam->setAutoCapInterval(600000);
+      if (needsLight) { ledLight->setBrightness(200); ledLight->on(); }
+      else { ledLight->off(); }
     }
   }
 }

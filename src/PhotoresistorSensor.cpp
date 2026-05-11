@@ -6,10 +6,14 @@ PhotoresistorSensor::PhotoresistorSensor(uint8_t pin)
 bool PhotoresistorSensor::init()
 {
     pinMode(_pin, INPUT);
-    
-    // Try to read the sensor
+
+    // Take an initial reading and store it in _value so that any module that
+    // queries getValue() before the first update() (e.g. LEDGrowLight's
+    // self-test during initializeAll) gets a real number, not 0.
     uint16_t reading = analogRead(_pin);
-    
+    _value = (float)reading;
+    _lastReadTime = millis();
+
     _available = true;
 
     if (DEBUG_ENABLED)

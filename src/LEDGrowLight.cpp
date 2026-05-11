@@ -26,69 +26,22 @@ bool LEDGrowLight::init()
 
     pinMode(_pwmPin, OUTPUT);
     off(); // Start with light off
-    delay(100); // Wait for sensor to stabilize
 
-    // Attempt hardware detection by measuring light level change
-    ModuleManager &manager = ModuleManager::getInstance();
-    Sensor *lightSensor = manager.getSensor(MODULE_LIGHT_SENSOR);
-    
-    if (lightSensor && lightSensor->isAvailable())
+    // Note: previous versions tried to auto-detect the LED by measuring a
+    // light-level delta on the photoresistor before/after turning on the LED.
+    // That detection was unreliable because the Sensor abstraction caches
+    // readings and the per-sensor update() throttle (LIGHT_READ_INTERVAL)
+    // blocked the second sample from being a fresh reading. Trust the
+    // ENABLE_LED_GROW_LIGHT compile-time flag and verify wiring visually.
+    _available = true;
+
+    if (DEBUG_ENABLED)
     {
-        // Take baseline reading with LED off
-        uint16_t baselineLight = (uint16_t)lightSensor->getValue();
-        
-        // Turn LED on to test brightness
-        analogWrite(_pwmPin, 200);
-        delay(150);  // Wait for light to stabilize and sensor to read
-        
-        // Take reading with LED on
-        uint16_t ledOnLight = (uint16_t)lightSensor->getValue();
-        
-        // Turn LED off
-        analogWrite(_pwmPin, 0);
-        
-        if (DEBUG_ENABLED)
-        {
-            Serial.print("[LEDGrowLight] Detection test - Baseline: ");
-            Serial.print(baselineLight);
-            Serial.print(" | LED On: ");
-            Serial.println(ledOnLight);
-        }
-        
-        // If light level changed significantly (at least 20 points), LED is present
-        // Remember: higher raw value = darker, so LED ON should make value LOWER
-        if ((baselineLight - ledOnLight) >= 20)
-        {
-            _available = true;
-            if (DEBUG_ENABLED)
-            {
-                Serial.println("[LEDGrowLight] LED DETECTED and initialized on pin " + String(_pwmPin));
-            }
-            return true;
-        }
-        else
-        {
-            _available = false;
-            if (DEBUG_ENABLED)
-            {
-                Serial.print("[LEDGrowLight] FAILED - LED not detected on pin ");
-                Serial.println(_pwmPin);
-            }
-            return false;
-        }
+        Serial.print("[LEDGrowLight] Initialized on pin ");
+        Serial.println(_pwmPin);
     }
-    else
-    {
-        // Light sensor not available, assume LED is there if pin is valid
-        _available = true;
-        if (DEBUG_ENABLED)
-        {
-            Serial.print("[LEDGrowLight] Initialized on pin ");
-            Serial.println(_pwmPin);
-            Serial.println("[LEDGrowLight] (No light sensor for detection, assuming LED is present)");
-        }
-        return true;
-    }
+
+    return true;
 }
 
 bool LEDGrowLight::isAvailable()
@@ -99,7 +52,11 @@ bool LEDGrowLight::isAvailable()
 
 void LEDGrowLight::update()
 {
-    updatePhotoperiod();
+    // LED on/off is owned by the system control logic in main.cpp,
+    // which combines light-sensor readings with photoperiod constraints.
+    // Calling updatePhotoperiod() here would fight that logic on every loop()
+    // iteration. Photoperiod helpers (isInPhotoperiod / updatePhotoperiod)
+    // remain available for callers that opt in to time-only control.
 }
 
 void LEDGrowLight::on()
@@ -107,22 +64,23 @@ void LEDGrowLight::on()
     if (!_available)
         return;
 
-    // Only print if state is changing from OFF to ON
-    if (!_isOn)
-    {
-        if (DEBUG_ENABLED)
-        {
-            Serial.print("[LEDGrowLight] Turned ON (brightness: ");
-            Serial.print((_powerLevel * 100) / 255);
-            Serial.println("%)");
-        }
-    }
+    // Idempotent: a repeat call must not reset _onStartTime — keeps getRunTime()
+    // monotonic and stops the debug log from spamming once per tick.
+    if (_isOn)
+        return;
 
     _isOn = true;
     _onStartTime = millis();
     if (_powerLevel == 0)
         _powerLevel = 255; // Default to full brightness
     analogWrite(_pwmPin, _powerLevel);
+
+    if (DEBUG_ENABLED)
+    {
+        Serial.print("[LEDGrowLight] Turned ON (brightness: ");
+        Serial.print((_powerLevel * 100) / 255);
+        Serial.println("%)");
+    }
 }
 
 void LEDGrowLight::off()

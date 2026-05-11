@@ -32,7 +32,12 @@ bool VentilationFan::init()
     {
         pinMode(_enPin, OUTPUT);
     }
-    off(); // Start with fan off
+
+    // off() is gated by _isOn (still false here), so it would not actually
+    // drive any pin. Force a known stop state on the H-bridge directly.
+    digitalWrite(_in1Pin, LOW);
+    digitalWrite(_in2Pin, LOW);
+    if (_enPin >= 0) analogWrite(_enPin, 0);
 
     _available = true;
 
@@ -57,17 +62,6 @@ bool VentilationFan::isAvailable()
 
 void VentilationFan::update()
 {
-    // Force-maintain EN and direction pins if motor should be on
-    if (_isOn)
-    {
-        if (_enPin >= 0)
-        {
-            analogWrite(_enPin, 255); // PWM at full strength
-        }
-        digitalWrite(_in1Pin, HIGH);
-        digitalWrite(_in2Pin, LOW);
-    }
-    
     // Check for safety timeout
     if (_isOn && isTimeoutActive())
     {
@@ -81,11 +75,6 @@ void VentilationFan::update()
 
 void VentilationFan::on()
 {
-    if (DEBUG_ENABLED)
-    {
-        Serial.println("[VentilationFan] on() called!");
-    }
-
     if (!_available)
     {
         if (DEBUG_ENABLED)
@@ -94,6 +83,11 @@ void VentilationFan::on()
         }
         return;
     }
+
+    // Idempotent: a repeat call must not reset _onStartTime, or the safety
+    // timeout would never expire when control logic calls on() every loop tick.
+    if (_isOn)
+        return;
 
     if (!performSafetyCheck())
     {
@@ -108,26 +102,22 @@ void VentilationFan::on()
     _onStartTime = millis();
     _powerLevel = 255;
 
-    // Set EN pin using PWM to enable H-bridge
-    if (_enPin >= 0)
-    {
-        analogWrite(_enPin, 255); // PWM at full strength
-    }
-
-    // Small delay to ensure EN is stable
-    delayMicroseconds(100);
-
-    // Then set direction pins
     digitalWrite(_in1Pin, HIGH);
     digitalWrite(_in2Pin, LOW);
+    if (_enPin >= 0)
+    {
+        analogWrite(_enPin, _powerLevel);
+    }
 
     if (DEBUG_ENABLED)
     {
-        Serial.print("[VentilationFan] ON - EN=PWM(255), IN1(");
+        Serial.print("[VentilationFan] Turned ON (IN1=");
         Serial.print(_in1Pin);
-        Serial.print(")=HIGH, IN2(");
+        Serial.print(" HIGH, IN2=");
         Serial.print(_in2Pin);
-        Serial.println(")=LOW");
+        Serial.print(" LOW, EN=");
+        Serial.print(_enPin);
+        Serial.println(" PWM=255)");
     }
 }
 
@@ -139,20 +129,16 @@ void VentilationFan::off()
         _isOn = false;
         _powerLevel = 0;
         _onStartTime = 0;
-
-        // Set both IN pins LOW first
         digitalWrite(_in1Pin, LOW);
         digitalWrite(_in2Pin, LOW);
-
-        // Then disable EN using PWM
         if (_enPin >= 0)
         {
-            analogWrite(_enPin, 0); // PWM to 0 to disable
+            analogWrite(_enPin, 0);
         }
 
         if (DEBUG_ENABLED)
         {
-            Serial.print("[VentilationFan] OFF (ran for ");
+            Serial.print("[VentilationFan] Turned OFF (ran for ");
             Serial.print(runTime);
             Serial.println(" ms)");
         }

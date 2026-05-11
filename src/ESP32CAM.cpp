@@ -22,17 +22,20 @@ bool ESP32CAM::init()
 
     delay(2000); // Give ESP32-CAM time to boot
 
-    // Try to communicate with ESP32-CAM
-    if (!isReady())
+    // Probe the module with a basic AT command. If the firmware on the ESP32-CAM
+    // does not respond to "AT", the module is not connected/programmed correctly.
+    if (!sendATCommand("AT", 1500))
     {
+        _ready = false;
         _available = false;
         if (DEBUG_ENABLED)
         {
-            Serial.println("[ESP32-CAM] Module not responding");
+            Serial.println("[ESP32-CAM] Module not responding to AT probe");
         }
         return false;
     }
 
+    _ready = true;
     _available = true;
 
     if (DEBUG_ENABLED)
