@@ -49,20 +49,39 @@ bool GreenhouseServer::begin()
         Serial.print("'");
     }
 
-    int attempts = 0;
-    int status = WL_IDLE_STATUS;
-    while (status != WL_CONNECTED && attempts < 20)
+    // Kick off the connection once and poll WiFi.status(). Calling
+    // WiFi.begin() in a loop resets WiFiS3 state on every call, which can
+    // break association on some firmware versions.
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    unsigned long connectStart = millis();
+    while (WiFi.status() != WL_CONNECTED && (millis() - connectStart) < 20000)
     {
-        status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
         if (DEBUG_ENABLED) Serial.print('.');
-        delay(800);
-        attempts++;
+        delay(500);
     }
 
-    if (status != WL_CONNECTED)
+    if (WiFi.status() != WL_CONNECTED)
     {
         if (DEBUG_ENABLED)
             Serial.println("\n[Net] WiFi connect FAILED — running offline");
+        _wifiReady = false;
+        return false;
+    }
+
+    // WiFiS3 can report WL_CONNECTED before DHCP assigns an address.
+    // Wait for a usable IP so we don't announce http://0.0.0.0.
+    unsigned long dhcpStart = millis();
+    while (WiFi.localIP() == IPAddress(0, 0, 0, 0) && (millis() - dhcpStart) < 8000)
+    {
+        if (DEBUG_ENABLED) Serial.print('+');
+        delay(250);
+    }
+
+    if (WiFi.localIP() == IPAddress(0, 0, 0, 0))
+    {
+        if (DEBUG_ENABLED)
+            Serial.println("\n[Net] DHCP timed out — no IP assigned. Running offline.");
         _wifiReady = false;
         return false;
     }
