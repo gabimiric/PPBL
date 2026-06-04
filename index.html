@@ -853,6 +853,14 @@ select.input { cursor: pointer; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .gallery-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ============ CAMERA HIDE MODE ============ */
+body.camera-hidden .camera-area { display: none !important; }
+body.camera-hidden .secondary-grid { grid-template-columns: repeat(2, 1fr); }
+body.camera-hidden .nav-item[data-route="timelapse"] { display: none; }
+@media (max-width: 1280px) {
+  body.camera-hidden .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -881,7 +889,7 @@ select.input { cursor: pointer; }
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       Schedules
     </div>
-    <div class="nav-item" data-route="timelapse">
+    <div class="nav-item camera-area" data-route="timelapse">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18v14H3zM3 9h18M7 13h6"/></svg>
       Time-Lapse
     </div>
@@ -932,11 +940,11 @@ select.input { cursor: pointer; }
           <span style="color:var(--text-2); margin-left:4px;">·</span>
           <span class="mono" style="color:var(--text-2);" id="uptime">--</span>
         </span>
-        <button class="btn" id="snapshotBtn">
+        <button class="btn camera-area" id="snapshotBtn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           Capture
         </button>
-        <button class="btn btn-primary" id="modeBtn">
+          <button class="btn btn-primary" id="modeBtn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
           Auto Mode
         </button>
@@ -1154,7 +1162,7 @@ select.input { cursor: pointer; }
       </div>
 
       <!-- TIME-LAPSE GALLERY -->
-      <div class="card">
+      <div class="card camera-area">
         <div class="card-header">
           <div class="card-title">Time-Lapse Gallery</div>
           <button class="btn" style="padding:4px 10px; font-size:11px;">View All</button>
@@ -1180,7 +1188,7 @@ select.input { cursor: pointer; }
           <div class="device-name"><span class="device-dot"></span>Arduino Uno R3</div>
           <div class="device-meta">ATmega328P · 16 MHz · 47% RAM · v1.2.0</div>
         </div>
-        <div class="device-row">
+        <div class="device-row camera-area">
           <div class="device-name"><span class="device-dot"></span>ESP32-CAM</div>
           <div class="device-meta">Wi-Fi RSSI -54 dBm · 192.168.1.42 · v1.1.3</div>
         </div>
@@ -1344,7 +1352,7 @@ select.input { cursor: pointer; }
             <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
           </div>
 
-          <div class="schedule-row">
+          <div class="schedule-row camera-area">
             <div class="schedule-time">14:00</div>
             <div class="schedule-meta">
               <span class="schedule-name">Camera Snapshot · Daily Time-lapse</span>
@@ -1397,7 +1405,7 @@ select.input { cursor: pointer; }
             <tr><td>22:00 today</td><td class="name-cell">LED OFF</td><td>Relay CH3 · D5</td><td>Schedule</td><td class="num">3h 12m</td></tr>
             <tr><td>06:00 tomorrow</td><td class="name-cell">LED ON</td><td>Relay CH3 · D5</td><td>Schedule</td><td class="num">11h 12m</td></tr>
             <tr><td>08:00 tomorrow</td><td class="name-cell">Pump pulse 3s</td><td>Relay CH1 · D3</td><td>Schedule</td><td class="num">13h 12m</td></tr>
-            <tr><td>14:00 tomorrow</td><td class="name-cell">Camera capture</td><td>ESP32-CAM</td><td>Schedule</td><td class="num">19h 12m</td></tr>
+            <tr class="camera-area"><td>14:00 tomorrow</td><td class="name-cell">Camera capture</td><td>ESP32-CAM</td><td>Schedule</td><td class="num">19h 12m</td></tr>
             <tr><td>continuous</td><td class="name-cell">Threshold check</td><td>All sensors</td><td>Automation engine</td><td class="num">5s</td></tr>
           </tbody>
         </table>
@@ -1405,11 +1413,16 @@ select.input { cursor: pointer; }
     </div>
 
     <!-- ============ PAGE: TIME-LAPSE ============ -->
-    <div class="page" id="page-timelapse">
+    <div class="page camera-area" id="page-timelapse">
       <div class="topbar">
         <div>
           <h1>Time-Lapse Gallery</h1>
           <div class="topbar-sub">1,847 images · 312 MB used · daily snapshots since 2026-01-12</div>
+        <script>
+        // Set to `false` to hide all camera UI parts. Change this variable in the file.
+        const CAMERA_ENABLED = false; // <-- set to true to enable camera UI
+        if (!CAMERA_ENABLED) document.body.classList.add('camera-hidden');
+        </script>
         </div>
         <div class="topbar-actions">
           <button class="btn">
@@ -1500,7 +1513,7 @@ select.input { cursor: pointer; }
           </div>
         </div>
 
-        <div class="device-card-lg">
+        <div class="device-card-lg camera-area">
           <div class="device-icon-lg">📡</div>
           <div class="device-info">
             <div class="device-info-name">ESP32-CAM</div>
@@ -1749,7 +1762,7 @@ select.input { cursor: pointer; }
       </div>
 
       <div class="help-grid">
-        <div class="help-card">
+        <div class="help-card camera-area">
           <div class="help-icon">🚀</div>
           <div class="help-title">Getting Started</div>
           <div class="help-desc">Wire up Arduino, flash firmware, connect ESP32-CAM to Wi-Fi, and pair with your dashboard in under 10 minutes.</div>
@@ -1774,7 +1787,7 @@ select.input { cursor: pointer; }
           <div class="help-title">MQTT &amp; API</div>
           <div class="help-desc">Topic structure, payload schema, and example integrations with Home Assistant and Node-RED.</div>
         </div>
-        <div class="help-card">
+        <div class="help-card camera-area">
           <div class="help-icon">🔧</div>
           <div class="help-title">Troubleshooting</div>
           <div class="help-desc">Sensor offline, ESP32-CAM Wi-Fi disconnects, pump not responding, image capture failures.</div>
@@ -1792,7 +1805,7 @@ select.input { cursor: pointer; }
             <div class="faq-q">Can the system run if Wi-Fi goes down?</div>
             <div class="faq-a">Yes — the Arduino performs all sensor polling and threshold-based actuation locally (edge computing). Wi-Fi is only required for the dashboard, time-lapse uploads, and MQTT telemetry. Schedules and automation continue normally offline; data is queued on the microSD and synced when Wi-Fi returns.</div>
           </div>
-          <div class="faq-row">
+          <div class="faq-row camera-area">
             <div class="faq-q">How do I add a second pod or greenhouse?</div>
             <div class="faq-a">Each pod runs an independent Arduino + ESP32-CAM pair. Provision the new pair via Devices → "+ Add device", scan the QR code printed on the ESP32-CAM, and the dashboard will auto-discover its sensors and actuators. Multi-pod overview lands in v1.2.</div>
           </div>
@@ -2273,6 +2286,8 @@ function fmtAgo(min) {
   return `${Math.floor(min/1440)}d ago`;
 }
 function pushEvent(e) {
+  // If camera UI is hidden, skip camera-tagged events
+  if (document.body.classList && document.body.classList.contains('camera-hidden') && (e.tagText === 'CAM')) return;
   const feed = document.getElementById('eventFeed');
   const div = document.createElement('div');
   div.className = 'event';
@@ -2283,7 +2298,9 @@ function pushEvent(e) {
 function renderFeed() {
   const feed = document.getElementById('eventFeed');
   feed.innerHTML = '';
+  const hideCam = document.body.classList && document.body.classList.contains('camera-hidden');
   initialEvents.forEach(e => {
+    if (hideCam && e.tagText === 'CAM') return;
     const div = document.createElement('div');
     div.className = 'event';
     div.innerHTML = `<span class="event-time">${fmtAgo(e.mins)}</span><div class="event-body"><span class="event-tag ${e.tag}">${e.tagText}</span>${e.body}</div>`;
