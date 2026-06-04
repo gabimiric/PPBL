@@ -165,6 +165,11 @@ void updateControlLogic()
 {
   ModuleManager &manager = ModuleManager::getInstance();
   Settings &cfg = Settings::instance();
+  unsigned long now = millis();
+
+  auto overrideActive = [&](unsigned long untilMs) {
+    return untilMs != 0 && (long)(now - untilMs) < 0;
+  };
 
   // ========== MANUAL MODE ==========
   // In manual mode the dashboard owns the actuators; skip automation and
@@ -194,6 +199,12 @@ void updateControlLogic()
 
     if (soil && pump)
     {
+      if (overrideActive(cfg.manualPumpOverrideUntil))
+      {
+        cfg.manualPump ? pump->on() : pump->off();
+      }
+      else
+      {
       uint16_t raw = soil->getRawValue();
       bool dryPolarity = cfg.soilDryThreshold < cfg.soilWetThreshold;
       bool isDry = dryPolarity ? (raw <= cfg.soilDryThreshold) : (raw >= cfg.soilDryThreshold);
@@ -201,6 +212,7 @@ void updateControlLogic()
 
       if (isDry) pump->on();
       else if (isWet) pump->off();
+      }
     }
   }
 
@@ -212,12 +224,19 @@ void updateControlLogic()
 
     if (dht && fan)
     {
+      if (overrideActive(cfg.manualFanOverrideUntil))
+      {
+        cfg.manualFan ? fan->on() : fan->off();
+      }
+      else
+      {
       bool tempHigh = dht->getTemperature() > (float)cfg.tempHigh;
       bool humidityHigh = dht->getHumidity() > (float)cfg.humidityHigh;
       bool shouldRunFan = (humidityHigh || tempHigh);
 
       if (shouldRunFan) fan->on();
       else fan->off();
+      }
     }
   }
 
@@ -230,6 +249,12 @@ void updateControlLogic()
 
     if (lightSensor && ledLight)
     {
+      if (overrideActive(cfg.manualLedOverrideUntil))
+      {
+        cfg.manualLed ? ledLight->on() : ledLight->off();
+      }
+      else
+      {
       // Polarity differs between sensor types:
       //   Photoresistor: higher raw value = darker, so need light when value > threshold
       //   BH1750: returns actual lux, so need light when value < threshold
@@ -242,6 +267,7 @@ void updateControlLogic()
 #endif
       if (needsLight) { ledLight->setBrightness(200); ledLight->on(); }
       else { ledLight->off(); }
+      }
     }
   }
 }

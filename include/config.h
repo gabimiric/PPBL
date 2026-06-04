@@ -40,6 +40,7 @@
 #define DISPLAY_BUTTON_PIN 8
 #define ESP32_CAM_RX_PIN 10
 #define ESP32_CAM_TX_PIN 11
+#define ESP32_CAM_BAUD_RATE 9600
 
 // I2C Pins (Hardware on Arduino Uno: A4=SDA, A5=SCL)
 #define I2C_SDA_PIN A4

@@ -34,6 +34,12 @@ struct Settings
     bool manualFan = false;
     bool manualLed = false;
 
+    // Volatile: in MODE_AUTO, frontend manual commands temporarily override
+    // automation until these deadlines pass (millis epoch).
+    unsigned long manualPumpOverrideUntil = 0;
+    unsigned long manualFanOverrideUntil = 0;
+    unsigned long manualLedOverrideUntil = 0;
+
     // Load persisted settings from EEPROM. Call once in setup().
     void load();
     // Mark settings dirty; flushIfDue() will eventually persist them.

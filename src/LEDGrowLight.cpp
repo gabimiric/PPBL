@@ -123,6 +123,11 @@ unsigned long LEDGrowLight::getRunTime() const
 
 void LEDGrowLight::setBrightness(uint8_t level)
 {
+    if (_powerLevel == level)
+    {
+        return;
+    }
+
     _powerLevel = level;
 
     if (_isOn)

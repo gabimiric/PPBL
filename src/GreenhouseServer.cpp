@@ -26,6 +26,7 @@ static inline bool authRequired()
 // Cap on body size we are willing to read so a malformed client can't pin us.
 static const size_t MAX_BODY_BYTES = 512;
 static const unsigned long CLIENT_TIMEOUT_MS = 1500;
+static const unsigned long MANUAL_OVERRIDE_HOLD_MS = 10000;
 
 GreenhouseServer &GreenhouseServer::instance()
 {
@@ -344,10 +345,15 @@ void GreenhouseServer::doActuator(WiFiClient &client, const String &query)
 
     ModuleType type;
     bool *manualFlag = nullptr;
+    unsigned long *overrideUntil = nullptr;
     if (id == "pump") { type = MODULE_PUMP; manualFlag = &cfg.manualPump; }
     else if (id == "fan")  { type = MODULE_FAN;  manualFlag = &cfg.manualFan; }
     else if (id == "led")  { type = MODULE_LED_LIGHT; manualFlag = &cfg.manualLed; }
     else { sendError(client, 400, "unknown id"); return; }
+
+    if (id == "pump") overrideUntil = &cfg.manualPumpOverrideUntil;
+    else if (id == "fan") overrideUntil = &cfg.manualFanOverrideUntil;
+    else if (id == "led") overrideUntil = &cfg.manualLedOverrideUntil;
 
     if (!mm.isModuleAvailable(type))
     {
@@ -358,6 +364,7 @@ void GreenhouseServer::doActuator(WiFiClient &client, const String &query)
     if (!act) { sendError(client, 503, "actuator missing"); return; }
 
     *manualFlag = on;
+    if (overrideUntil) *overrideUntil = millis() + MANUAL_OVERRIDE_HOLD_MS;
     if (on) act->on(); else act->off();
 
     sendOk(client, String("\"") + id + "\":\"" + (on ? "on" : "off") + "\"");
