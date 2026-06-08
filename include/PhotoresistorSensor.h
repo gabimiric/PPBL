@@ -22,8 +22,7 @@ public:
     uint8_t getModuleType() const override { return MODULE_LIGHT_SENSOR; }
 
     /**
-     * getValue() returns light level in analog value (0-1023).
-     * 0 = bright, 1023 = dark (inverted polarity)
+        * getValue() returns estimated light level in lux.
      */
     float getValue() const override { return _value; }
 
@@ -31,13 +30,12 @@ public:
     bool isFresh() const override;
 
     /**
-     * Get light level in analog value (0-1023).
-     * Higher value = darker
+        * Get estimated light level in lux.
      */
     uint16_t getLightLevel() const { return (uint16_t)_value; }
 
     /**
-     * Check if supplemental lighting is needed (light level below threshold).
+        * Check if supplemental lighting is needed (lux below threshold).
      */
     bool needsSupplementalLight() const;
 

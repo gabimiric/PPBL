@@ -90,7 +90,8 @@
 #define SOIL_MOISTURE_READ_INTERVAL 1000
 
 // Pump safety cutoff (max on time in ms)
-#define PUMP_MAX_ON_TIME 60000 // 60 seconds
+// Keep this in the 5000-10000 range so the soil has time to update between pulses.
+#define PUMP_MAX_ON_TIME 8000 // 8 seconds
 
 // Fan safety cutoff (max on time in ms)
 #define FAN_MAX_ON_TIME 300000 // 5 minutes

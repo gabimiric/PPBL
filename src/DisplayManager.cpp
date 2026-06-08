@@ -46,6 +46,11 @@ bool DisplayManager::init()
 
 void DisplayManager::update()
 {
+    if (!_available)
+    {
+        return;
+    }
+
     unsigned long now = millis();
 
     // Update display every 100ms
@@ -60,6 +65,11 @@ void DisplayManager::update()
 
 void DisplayManager::togglePage()
 {
+    if (!_available)
+    {
+        return;
+    }
+
     _currentPage = (_currentPage + 1) % 2; // Toggle between 0 and 1
 
     if (DEBUG_ENABLED)
@@ -71,11 +81,21 @@ void DisplayManager::togglePage()
 
 void DisplayManager::clear()
 {
+    if (!_available)
+    {
+        return;
+    }
+
     _display.clearDisplay();
 }
 
 void DisplayManager::print(int16_t x, int16_t y, const char *text)
 {
+    if (!_available)
+    {
+        return;
+    }
+
     _display.setCursor(x, y);
     _display.println(text);
 }
@@ -95,6 +115,11 @@ float DisplayManager::getSensorValue(ModuleType type, float defaultValue)
 
 void DisplayManager::drawStatusTable()
 {
+    if (!_available)
+    {
+        return;
+    }
+
     ModuleManager &manager = ModuleManager::getInstance();
 
     _display.clearDisplay();
@@ -140,7 +165,7 @@ void DisplayManager::drawStatusTable()
     Sensor *lightSensor = manager.getSensor(MODULE_LIGHT_SENSOR);
     if (lightSensor && lightSensor->isAvailable())
     {
-        snprintf(statusLines[4], sizeof(statusLines[4]), "Light:%d raw", (int)lightSensor->getValue());
+        snprintf(statusLines[4], sizeof(statusLines[4]), "Light:%d lux", (int)lightSensor->getValue());
     }
     else
     {

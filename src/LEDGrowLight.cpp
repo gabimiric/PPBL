@@ -7,32 +7,8 @@ LEDGrowLight::LEDGrowLight(uint8_t pwmPin)
 
 bool LEDGrowLight::init()
 {
-    // Check if pin supports PWM
-    // PWM pins on Arduino Uno: 3, 5, 6, 9, 10, 11
-    bool isPWMPin = (_pwmPin == 3 || _pwmPin == 5 || _pwmPin == 6 ||
-                     _pwmPin == 9 || _pwmPin == 10 || _pwmPin == 11);
-
-    if (!isPWMPin)
-    {
-        _available = false;
-        if (DEBUG_ENABLED)
-        {
-            Serial.print("[LEDGrowLight] FAILED - Pin ");
-            Serial.print(_pwmPin);
-            Serial.println(" does not support PWM");
-        }
-        return false;
-    }
-
     pinMode(_pwmPin, OUTPUT);
     off(); // Start with light off
-
-    // Note: previous versions tried to auto-detect the LED by measuring a
-    // light-level delta on the photoresistor before/after turning on the LED.
-    // That detection was unreliable because the Sensor abstraction caches
-    // readings and the per-sensor update() throttle (LIGHT_READ_INTERVAL)
-    // blocked the second sample from being a fresh reading. Trust the
-    // ENABLE_LED_GROW_LIGHT compile-time flag and verify wiring visually.
     _available = true;
 
     if (DEBUG_ENABLED)
@@ -52,11 +28,7 @@ bool LEDGrowLight::isAvailable()
 
 void LEDGrowLight::update()
 {
-    // LED on/off is owned by the system control logic in main.cpp,
-    // which combines light-sensor readings with photoperiod constraints.
-    // Calling updatePhotoperiod() here would fight that logic on every loop()
-    // iteration. Photoperiod helpers (isInPhotoperiod / updatePhotoperiod)
-    // remain available for callers that opt in to time-only control.
+    // The LED is controlled directly from main.cpp based on lux.
 }
 
 void LEDGrowLight::on()

@@ -102,7 +102,10 @@ void loop()
 
   // Update OLED display (every 100ms)
   DisplayManager &display = DisplayManager::getInstance();
-  display.update();
+  if (display.isAvailable())
+  {
+    display.update();
+  }
 
   // Serve any pending HTTP requests from the dashboard
   GreenhouseServer::instance().handle();
@@ -138,15 +141,16 @@ void initializeSystem()
   // Initialize display button
   pinMode(DISPLAY_BUTTON_PIN, INPUT_PULLUP);
 
-  // Initialize OLED display first
+  // Initialize all configured modules
+  // This will auto-detect which modules are actually connected
+  bool allGood = manager.initializeAll();
+
+  // Initialize the OLED display last so the rest of the system still boots
+  // when no display is attached.
   if (!display.init() && DEBUG_ENABLED)
   {
     Serial.println("[Main] Warning: Display initialization failed");
   }
-
-  // Initialize all configured modules
-  // This will auto-detect which modules are actually connected
-  bool allGood = manager.initializeAll();
 
   if (DEBUG_ENABLED)
   {
@@ -188,14 +192,13 @@ void updateControlLogic()
   }
 
   // ========== IRRIGATION CONTROL ==========
-  // Hysteresis: pump runs while raw is past the dry threshold and stops only
-  // once it crosses the wet threshold. Polarity is auto-detected so a sensor
-  // wired the opposite way (wet>dry) still works.
+  // Pump runs only while the soil is dry. The safety timeout in WaterPump
+  // limits each pulse so the sensor can settle before the next decision.
   if (manager.isModuleAvailable(MODULE_SOIL_MOISTURE) &&
       manager.isModuleAvailable(MODULE_PUMP))
   {
     SoilMoistureSensor *soil = (SoilMoistureSensor *)manager.getSensor(MODULE_SOIL_MOISTURE);
-    Actuator *pump = manager.getActuator(MODULE_PUMP);
+    WaterPump *pump = (WaterPump *)manager.getActuator(MODULE_PUMP);
 
     if (soil && pump)
     {
@@ -205,13 +208,21 @@ void updateControlLogic()
       }
       else
       {
-      uint16_t raw = soil->getRawValue();
-      bool dryPolarity = cfg.soilDryThreshold < cfg.soilWetThreshold;
-      bool isDry = dryPolarity ? (raw <= cfg.soilDryThreshold) : (raw >= cfg.soilDryThreshold);
-      bool isWet = dryPolarity ? (raw >= cfg.soilWetThreshold) : (raw <= cfg.soilWetThreshold);
-
-      if (isDry) pump->on();
-      else if (isWet) pump->off();
+        if (soil->isDry())
+        {
+          if (!pump->isOn() && !pump->isCooldownActive())
+          {
+            pump->on();
+          }
+        }
+        else
+        {
+          if (pump->isOn())
+          {
+            pump->off();
+            pump->startCooldown();
+          }
+        }
       }
     }
   }
@@ -255,16 +266,8 @@ void updateControlLogic()
       }
       else
       {
-      // Polarity differs between sensor types:
-      //   Photoresistor: higher raw value = darker, so need light when value > threshold
-      //   BH1750: returns actual lux, so need light when value < threshold
       float reading = lightSensor->getValue();
-      bool needsLight;
-#if USE_BH1750_LIGHT_SENSOR
-      needsLight = reading < (float)cfg.lightLow;
-#else
-      needsLight = reading > (float)cfg.lightLow;
-#endif
+      bool needsLight = reading < (float)cfg.lightLow;
       if (needsLight) { ledLight->setBrightness(200); ledLight->on(); }
       else { ledLight->off(); }
       }

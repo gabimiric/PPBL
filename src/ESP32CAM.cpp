@@ -13,35 +13,21 @@ bool ESP32CAM::init()
     if (!initializeSerial())
     {
         _available = false;
-        if (DEBUG_ENABLED)
-        {
-            Serial.println("[ESP32-CAM] Failed to initialize serial communication");
-        }
         return false;
     }
 
-    delay(2000); // Give ESP32-CAM time to boot
+    delay(500); // Short boot settle time
 
-    // Probe the module with a basic AT command. If the firmware on the ESP32-CAM
-    // does not respond to "AT", the module is not connected/programmed correctly.
-    if (!sendATCommand("AT", 1500))
+    // Probe the module with a basic AT command.
+    if (!sendATCommand("AT", 500))
     {
         _ready = false;
         _available = false;
-        if (DEBUG_ENABLED)
-        {
-            Serial.println("[ESP32-CAM] Module not responding to AT probe");
-        }
         return false;
     }
 
     _ready = true;
     _available = true;
-
-    if (DEBUG_ENABLED)
-    {
-        Serial.println("[ESP32-CAM] Initialized successfully");
-    }
 
     return true;
 }
@@ -74,12 +60,6 @@ bool ESP32CAM::captureImage()
     {
         _lastCaptureTime = millis();
         _imageCount++;
-
-        if (DEBUG_ENABLED)
-        {
-            Serial.print("[ESP32-CAM] Image captured. Total: ");
-            Serial.println(_imageCount);
-        }
     }
 
     return success;
@@ -88,20 +68,6 @@ bool ESP32CAM::captureImage()
 void ESP32CAM::setAutoCapInterval(unsigned long intervalMs)
 {
     _autoCapInterval = intervalMs;
-
-    if (DEBUG_ENABLED)
-    {
-        if (intervalMs == 0)
-        {
-            Serial.println("[ESP32-CAM] Auto-capture disabled");
-        }
-        else
-        {
-            Serial.print("[ESP32-CAM] Auto-capture interval set to ");
-            Serial.print(intervalMs);
-            Serial.println(" ms");
-        }
-    }
 }
 
 bool ESP32CAM::sendATCommand(const char *cmd, unsigned long timeoutMs)
@@ -147,7 +113,7 @@ bool ESP32CAM::initializeSerial()
 {
     // Create software serial instance
     _camSerial = new SoftwareSerial(_rxPin, _txPin);
-    _camSerial->begin(115200);
+    _camSerial->begin(ESP32_CAM_BAUD_RATE);
 
     return _camSerial != nullptr;
 }
