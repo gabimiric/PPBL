@@ -25,6 +25,13 @@ bool BH1750Sensor::init()
     // Set measurement mode to continuously high resolution
     sendCommand(0x10); // Continuous H-resolution mode
 
+    // Take an initial reading so getValue() returns a real lux value before
+    // the first scheduled update() — useful for any module that probes the
+    // light level during initializeAll() (e.g. LEDGrowLight self-test).
+    delay(180); // BH1750 H-res measurement time
+    readLux();
+    _lastReadTime = millis();
+
     if (DEBUG_ENABLED)
     {
         Serial.println("[BH1750] Initialized successfully");

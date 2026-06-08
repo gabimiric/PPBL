@@ -5,8 +5,8 @@ WaterPump::WaterPump(uint8_t relayPin)
 
 bool WaterPump::init()
 {
-    // Verify pin is valid before initializing
-    if (!(_relayPin >= 0 && _relayPin <= 13))
+    // Verify pin is valid before initializing (Uno digital range D0..D13).
+    if (_relayPin > 13)
     {
         _available = false;
         if (DEBUG_ENABLED)
@@ -47,12 +47,18 @@ void WaterPump::update()
             Serial.println("[WaterPump] TIMEOUT - Pump forced OFF!");
         }
         off();
+        startCooldown();
     }
 }
 
 void WaterPump::on()
 {
     if (!_available)
+        return;
+
+    // Idempotent: a repeat call must not reset _onStartTime, or the safety
+    // timeout would never expire when control logic calls on() every loop tick.
+    if (_isOn)
         return;
 
     if (!performSafetyCheck())
@@ -64,19 +70,15 @@ void WaterPump::on()
         return;
     }
 
-    // Only print if state is changing from OFF to ON
-    if (!_isOn)
-    {
-        if (DEBUG_ENABLED)
-        {
-            Serial.println("[WaterPump] Turned ON");
-        }
-    }
-
     _isOn = true;
     _onStartTime = millis();
     _powerLevel = 255;
     digitalWrite(_relayPin, HIGH);
+
+    if (DEBUG_ENABLED)
+    {
+        Serial.println("[WaterPump] Turned ON");
+    }
 }
 
 void WaterPump::off()
@@ -124,6 +126,16 @@ bool WaterPump::isTimeoutActive() const
     return getRunTime() > PUMP_MAX_ON_TIME;
 }
 
+bool WaterPump::isCooldownActive() const
+{
+    return _cooldownUntil != 0 && (long)(millis() - _cooldownUntil) < 0;
+}
+
+void WaterPump::startCooldown(unsigned long durationMs)
+{
+    _cooldownUntil = millis() + durationMs;
+}
+
 void WaterPump::resetRunTime()
 {
     _onStartTime = millis();
@@ -134,5 +146,5 @@ bool WaterPump::performSafetyCheck()
     // Add any safety checks here
     // For example: check soil moisture before pumping
     // This prevents overwatering
-    return true;
+    return !isCooldownActive();
 }

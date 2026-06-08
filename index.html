@@ -1,0 +1,2515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Greenhouse · Control Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-0: #0a0e0c;
+  --bg-1: #111613;
+  --bg-2: #161d19;
+  --bg-3: #1d2622;
+  --line: #232d28;
+  --line-2: #2c3933;
+  --text-0: #e8efe9;
+  --text-1: #a8b5ac;
+  --text-2: #6b7872;
+  --accent: #4ade80;
+  --accent-2: #22c55e;
+  --accent-glow: rgba(74, 222, 128, 0.15);
+  --warn: #fbbf24;
+  --warn-glow: rgba(251, 191, 36, 0.15);
+  --danger: #f87171;
+  --danger-glow: rgba(248, 113, 113, 0.15);
+  --info: #60a5fa;
+  --info-glow: rgba(96, 165, 250, 0.15);
+  --purple: #c084fc;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ============ LAYOUT ============ */
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+/* ============ SIDEBAR ============ */
+.sidebar {
+  background: var(--bg-1);
+  border-right: 1px solid var(--line);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 24px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-name { font-weight: 700; font-size: 15px; color: var(--text-0); }
+.brand-sub { font-size: 11px; color: var(--text-2); letter-spacing: 0.5px; text-transform: uppercase; }
+
+.nav-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-2);
+  padding: 16px 12px 8px;
+  font-weight: 600;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--bg-2); color: var(--text-0); }
+.nav-item.active {
+  background: var(--bg-2);
+  color: var(--accent);
+  border-color: var(--line-2);
+}
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+.user-meta { display: flex; flex-direction: column; line-height: 1.2; }
+.user-name { font-size: 13px; font-weight: 600; }
+.user-email { font-size: 11px; color: var(--text-2); }
+
+/* ============ MAIN ============ */
+.main { padding: 24px 32px; max-width: 1600px; }
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  gap: 16px;
+}
+.topbar h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.topbar-sub {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.topbar-actions { display: flex; gap: 10px; align-items: center; }
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 var(--accent);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.6); }
+  50% { box-shadow: 0 0 0 6px rgba(74,222,128,0); }
+}
+.btn {
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-0);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--bg-3); border-color: #3a4942; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-2), #16a34a);
+  border-color: var(--accent-2);
+  color: #03110a;
+  font-weight: 600;
+}
+.btn-primary:hover { filter: brightness(1.1); }
+
+/* ============ CARDS ============ */
+.card {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.card-body { }
+
+/* ============ KPI GRID ============ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--accent);
+}
+.kpi-card.warn::before { background: var(--warn); }
+.kpi-card.danger::before { background: var(--danger); }
+.kpi-card.info::before { background: var(--info); }
+.kpi-card.purple::before { background: var(--purple); }
+
+.kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-glow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.kpi-icon svg { width: 20px; height: 20px; stroke: var(--accent); fill: none; stroke-width: 2; }
+.kpi-card.warn .kpi-icon { background: var(--warn-glow); }
+.kpi-card.warn .kpi-icon svg { stroke: var(--warn); }
+.kpi-card.info .kpi-icon { background: var(--info-glow); }
+.kpi-card.info .kpi-icon svg { stroke: var(--info); }
+.kpi-card.purple .kpi-icon { background: rgba(192,132,252,0.15); }
+.kpi-card.purple .kpi-icon svg { stroke: var(--purple); }
+
+.kpi-label {
+  font-size: 12px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.kpi-value {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  font-family: 'JetBrains Mono', monospace;
+}
+.kpi-unit { font-size: 14px; color: var(--text-1); margin-left: 4px; font-weight: 500; }
+.kpi-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  margin-top: 8px;
+  color: var(--accent);
+  font-weight: 500;
+}
+.kpi-trend.down { color: var(--danger); }
+.kpi-trend.flat { color: var(--text-2); }
+.kpi-bar {
+  margin-top: 12px;
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.kpi-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+.kpi-card.warn .kpi-bar-fill { background: var(--warn); }
+.kpi-card.danger .kpi-bar-fill { background: var(--danger); }
+.kpi-card.info .kpi-bar-fill { background: var(--info); }
+.kpi-card.purple .kpi-bar-fill { background: var(--purple); }
+
+/* ============ MAIN GRID ============ */
+.main-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.chart-wrap { height: 320px; position: relative; }
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-1);
+  cursor: pointer;
+}
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.range-tabs {
+  display: inline-flex;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.range-tab {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.range-tab.active { background: var(--bg-3); color: var(--text-0); }
+
+/* ============ ACTUATOR CARD ============ */
+.actuator {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.actuator:last-child { border-bottom: none; }
+.actuator-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-2);
+}
+.actuator-icon svg { width: 20px; height: 20px; stroke-width: 1.8; fill: none; }
+.actuator.on .actuator-icon { background: var(--accent-glow); border-color: var(--accent); }
+.actuator.on .actuator-icon svg { stroke: var(--accent); }
+.actuator-meta { display: flex; flex-direction: column; gap: 2px; }
+.actuator-name { font-weight: 600; font-size: 14px; }
+.actuator-sub { font-size: 12px; color: var(--text-2); }
+.actuator-sub .pin { color: var(--info); }
+.actuator-state {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.actuator.on .actuator-state {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+/* ============ TOGGLE SWITCH ============ */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: 100px;
+  transition: 0.2s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  top: 3px;
+  background: var(--text-1);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.toggle input:checked + .toggle-slider { background: var(--accent-2); border-color: var(--accent-2); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(20px); background: #03110a; }
+
+/* ============ SECONDARY GRID ============ */
+.secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* ============ THRESHOLD ============ */
+.threshold {
+  margin-bottom: 16px;
+}
+.threshold:last-child { margin-bottom: 0; }
+.threshold-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.threshold-label { font-size: 13px; font-weight: 600; }
+.threshold-val { font-size: 13px; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.slider {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  outline: none;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 3px solid var(--bg-1);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 3px solid var(--bg-1);
+}
+
+/* ============ EVENT FEED ============ */
+.event-feed {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.event-feed::-webkit-scrollbar { width: 4px; }
+.event-feed::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
+.event {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 13px;
+}
+.event:last-child { border-bottom: none; }
+.event-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.event-body { flex: 1; }
+.event-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 6px;
+}
+.event-tag.info { background: var(--info-glow); color: var(--info); }
+.event-tag.success { background: var(--accent-glow); color: var(--accent); }
+.event-tag.warn { background: var(--warn-glow); color: var(--warn); }
+.event-tag.danger { background: var(--danger-glow); color: var(--danger); }
+
+/* ============ GALLERY ============ */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.gallery-item {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a3220, #0f1f15);
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--line-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gallery-item:hover { border-color: var(--accent); }
+.gallery-item .leaf {
+  font-size: 36px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+}
+.gallery-item .day {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  font-size: 10px;
+  background: rgba(0,0,0,0.6);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ============ DEVICE STATUS ============ */
+.device-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.device-row:last-child { border-bottom: none; }
+.device-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.device-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.device-dot.warn { background: var(--warn); }
+.device-dot.off { background: var(--text-2); }
+.device-meta { font-size: 11px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; }
+
+/* ============ MODAL & TOAST ============ */
+.toast-stack {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 280px;
+  animation: slideIn 0.25s ease;
+  pointer-events: auto;
+}
+.toast.warn { border-left-color: var(--warn); }
+.toast.danger { border-left-color: var(--danger); }
+.toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.toast-body { font-size: 12px; color: var(--text-1); }
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ============ PAGES (SPA ROUTING) ============ */
+.page { display: none; animation: fadeIn 0.25s ease; }
+.page.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ TABLE ============ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-2);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+}
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.data-table tr:hover td { background: var(--bg-2); }
+.data-table .num { text-align: right; }
+.data-table .name-cell { font-family: 'Inter', sans-serif; font-weight: 500; }
+
+/* ============ SCHEDULE ============ */
+.schedule-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.schedule-row:last-child { border-bottom: none; }
+.schedule-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--bg-2);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  border: 1px solid var(--line-2);
+  min-width: 90px;
+  text-align: center;
+}
+.schedule-meta { display: flex; flex-direction: column; gap: 2px; }
+.schedule-name { font-weight: 600; font-size: 14px; }
+.schedule-sub { font-size: 12px; color: var(--text-2); }
+.schedule-days {
+  display: flex;
+  gap: 3px;
+}
+.day-pill {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+}
+.day-pill.on { background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent); }
+
+/* ============ LARGE GALLERY ============ */
+.gallery-grid-large {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+.gallery-item-large {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a3220, #0f1f15);
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--line-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+.gallery-item-large:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+.gallery-item-large .leaf { font-size: 56px; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
+.gallery-item-large .meta {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+  padding: 16px 10px 8px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ============ DEVICE DETAIL ============ */
+.device-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.device-card-lg {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  border-radius: var(--radius);
+  align-items: center;
+}
+.device-icon-lg {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--accent-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+.device-info { display: flex; flex-direction: column; gap: 4px; }
+.device-info-name { font-weight: 700; font-size: 15px; }
+.device-info-meta { font-size: 12px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; }
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.metric-cell {
+  background: var(--bg-2);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+}
+.metric-cell .l { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.metric-cell .v { font-family: 'JetBrains Mono', monospace; font-weight: 600; margin-top: 2px; }
+
+/* ============ SETTINGS FORM ============ */
+.settings-row {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-label { font-weight: 600; font-size: 13px; }
+.settings-help { font-size: 12px; color: var(--text-2); margin-top: 4px; line-height: 1.5; }
+.input {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text-0);
+  font-family: inherit;
+  font-size: 13px;
+}
+.input:focus { outline: none; border-color: var(--accent); }
+select.input { cursor: pointer; }
+
+/* ============ HELP ARTICLES ============ */
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.help-card {
+  padding: 20px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.help-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.help-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+.help-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.help-desc { font-size: 12px; color: var(--text-1); line-height: 1.5; }
+.faq-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.faq-row:last-child { border-bottom: none; }
+.faq-q { font-weight: 600; display: flex; justify-content: space-between; }
+.faq-a { font-size: 13px; color: var(--text-1); margin-top: 8px; line-height: 1.6; display: none; }
+.faq-row.open .faq-a { display: block; }
+.faq-row.open .faq-q::after { content: '−'; }
+.faq-q::after { content: '+'; color: var(--text-2); font-size: 18px; }
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1280px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .main-grid { grid-template-columns: 1fr; }
+  .secondary-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .main { padding: 16px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .gallery-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ============ CAMERA HIDE MODE ============ */
+body.camera-hidden .camera-area { display: none !important; }
+body.camera-hidden .secondary-grid { grid-template-columns: repeat(2, 1fr); }
+body.camera-hidden .nav-item[data-route="timelapse"] { display: none; }
+@media (max-width: 1280px) {
+  body.camera-hidden .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">🌿</div>
+      <div class="brand-text">
+        <span class="brand-name">GreenPod</span>
+        <span class="brand-sub">v1.0 · IoT</span>
+      </div>
+    </div>
+
+    <div class="nav-label">Workspace</div>
+    <div class="nav-item active" data-route="dashboard">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12L12 4l9 8M5 10v10h14V10"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-route="history">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zm4 4h8M8 12h8M8 16h5"/></svg>
+      Sensor History
+    </div>
+    <div class="nav-item" data-route="schedules">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      Schedules
+    </div>
+    <div class="nav-item camera-area" data-route="timelapse">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18v14H3zM3 9h18M7 13h6"/></svg>
+      Time-Lapse
+    </div>
+    <div class="nav-item" data-route="devices">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Devices
+    </div>
+
+    <div class="nav-label">System</div>
+    <div class="nav-item" data-route="settings">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+    <div class="nav-item" data-route="help">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>
+      Help &amp; Docs
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar">DR</div>
+      <div class="user-meta">
+        <span class="user-name">Dumitru R.</span>
+        <span class="user-email">UTM · Owner</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- ============ PAGE: DASHBOARD ============ -->
+    <div class="page active" id="page-dashboard">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div>
+        <h1>Greenhouse Overview</h1>
+        <div class="topbar-sub">Pod #1 · <span id="locName">Living Room</span> · <span class="mono" id="liveClock">--:--:--</span></div>
+      </div>
+      <div class="topbar-actions">
+        <input type="text" id="hostInput" class="input mono" placeholder="http://192.168.x.x" title="Arduino device URL"
+               style="width:200px; padding:6px 10px; font-size:12px; background:var(--bg-2); border:1px solid var(--line-2); border-radius:var(--radius-sm); color:var(--text-0);">
+        <input type="password" id="tokenInput" class="input mono" placeholder="API token (optional)" title="X-Auth-Token sent on every request"
+               style="width:150px; padding:6px 10px; font-size:12px; background:var(--bg-2); border:1px solid var(--line-2); border-radius:var(--radius-sm); color:var(--text-0);">
+        <span class="status-pill" id="connPill">
+          <span class="status-dot" id="connDot"></span>
+          <span id="connLabel">Connecting…</span>
+          <span style="color:var(--text-2); margin-left:4px;">·</span>
+          <span class="mono" style="color:var(--text-2);" id="uptime">--</span>
+        </span>
+        <button class="btn camera-area" id="snapshotBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Capture
+        </button>
+          <button class="btn btn-primary" id="modeBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+          Auto Mode
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI GRID -->
+    <div class="kpi-grid">
+      <div class="card kpi-card" id="kpi-soil">
+        <div class="kpi-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2v8m-4-4h8M4 14h16v6H4z"/><path d="M12 14c-2 0-4 2-4 4M12 14c2 0 4 2 4 4"/></svg>
+        </div>
+        <div class="kpi-label">Soil Moisture</div>
+        <div class="kpi-value"><span data-val="soil">42</span><span class="kpi-unit">%</span></div>
+        <div class="kpi-trend">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          <span>+3.2% / 1h</span>
+        </div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:42%"></div></div>
+      </div>
+
+      <div class="card kpi-card warn" id="kpi-temp">
+        <div class="kpi-icon">
+          <svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+        </div>
+        <div class="kpi-label">Air Temperature</div>
+        <div class="kpi-value"><span data-val="temp">23.4</span><span class="kpi-unit">°C</span></div>
+        <div class="kpi-trend flat">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+          <span>stable / 1h</span>
+        </div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:58%"></div></div>
+      </div>
+
+      <div class="card kpi-card info" id="kpi-hum">
+        <div class="kpi-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        </div>
+        <div class="kpi-label">Humidity</div>
+        <div class="kpi-value"><span data-val="hum">61</span><span class="kpi-unit">%</span></div>
+        <div class="kpi-trend down">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+          <span>-1.8% / 1h</span>
+        </div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:61%"></div></div>
+      </div>
+
+      <div class="card kpi-card purple" id="kpi-lux">
+        <div class="kpi-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </div>
+        <div class="kpi-label">Light Intensity</div>
+        <div class="kpi-value"><span data-val="lux">8420</span><span class="kpi-unit">lux</span></div>
+        <div class="kpi-trend">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          <span>+12% / 1h</span>
+        </div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:84%"></div></div>
+      </div>
+    </div>
+
+    <!-- MAIN GRID: Chart + Actuators -->
+    <div class="main-grid">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Environment Trend</div>
+            <div style="font-size:12px; color:var(--text-2); margin-top:2px;">Last <span id="rangeLabel">24 hours</span> · <span class="mono" style="color:var(--accent)">●</span> live</div>
+          </div>
+          <div class="range-tabs" id="rangeTabs">
+            <button class="range-tab" data-range="1h">1H</button>
+            <button class="range-tab active" data-range="24h">24H</button>
+            <button class="range-tab" data-range="7d">7D</button>
+            <button class="range-tab" data-range="30d">30D</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span> Soil Moisture (%)</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--warn)"></span> Temperature (°C)</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--info)"></span> Humidity (%)</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span> Light (× 1000 lux)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Actuator Control</div>
+          <span style="font-size:11px; color:var(--text-2);">4-channel relay</span>
+        </div>
+        <div class="card-body">
+
+          <div class="actuator on" data-act="pump">
+            <div class="actuator-icon">
+              <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v6m0 0c-3 0-5 2-5 5v3a5 5 0 0 0 10 0v-3c0-3-2-5-5-5z"/><path d="M9 19v3M15 19v3"/></svg>
+            </div>
+            <div class="actuator-meta">
+              <span class="actuator-name">Water Pump</span>
+              <span class="actuator-sub">3–6V DC · CH1 <span class="pin">D3</span></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="actuator-state">ON</span>
+              <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="actuator" data-act="fan">
+            <div class="actuator-icon">
+              <svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2a4 4 0 0 0-4 4c0 3 4 6 4 6s4-3 4-6a4 4 0 0 0-4-4zM2 12a4 4 0 0 0 4 4c3 0 6-4 6-4s-3-4-6-4a4 4 0 0 0-4 4zM12 22a4 4 0 0 0 4-4c0-3-4-6-4-6s-4 3-4 6a4 4 0 0 0 4 4zM22 12a4 4 0 0 0-4-4c-3 0-6 4-6 4s3 4 6 4a4 4 0 0 0 4-4z"/></svg>
+            </div>
+            <div class="actuator-meta">
+              <span class="actuator-name">Ventilation Fan</span>
+              <span class="actuator-sub">5V brushless · CH2 <span class="pin">D4</span></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="actuator-state">OFF</span>
+              <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="actuator on" data-act="led">
+            <div class="actuator-icon">
+              <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.7.5 1 1 1 1.7V18h6v-1.6c0-.7.3-1.2 1-1.7A7 7 0 0 0 12 2z"/></svg>
+            </div>
+            <div class="actuator-meta">
+              <span class="actuator-name">LED Grow Light</span>
+              <span class="actuator-sub">Full-spectrum · CH3 <span class="pin">D5</span></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="actuator-state">ON</span>
+              <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="actuator" data-act="buzzer">
+            <div class="actuator-icon">
+              <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </div>
+            <div class="actuator-meta">
+              <span class="actuator-name">Buzzer (Alarm)</span>
+              <span class="actuator-sub">5V active · CH4 <span class="pin">D6</span></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="actuator-state">OFF</span>
+              <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- SECONDARY GRID -->
+    <div class="secondary-grid">
+
+      <!-- THRESHOLDS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Automation Thresholds</div>
+          <button class="btn" style="padding:4px 10px; font-size:11px;">Save</button>
+        </div>
+        <div class="card-body">
+          <div class="threshold">
+            <div class="threshold-head">
+              <span class="threshold-label">Soil Moisture (irrigate below)</span>
+              <span class="threshold-val" id="thrSoilVal">30 %</span>
+            </div>
+            <input type="range" min="10" max="80" value="30" class="slider" id="thrSoil">
+          </div>
+          <div class="threshold">
+            <div class="threshold-head">
+              <span class="threshold-label">Humidity (vent above)</span>
+              <span class="threshold-val" id="thrHumVal">70 %</span>
+            </div>
+            <input type="range" min="40" max="95" value="70" class="slider" id="thrHum">
+          </div>
+          <div class="threshold">
+            <div class="threshold-head">
+              <span class="threshold-label">Temperature (vent above)</span>
+              <span class="threshold-val" id="thrTempVal">28 °C</span>
+            </div>
+            <input type="range" min="18" max="40" value="28" class="slider" id="thrTemp">
+          </div>
+          <div class="threshold">
+            <div class="threshold-head">
+              <span class="threshold-label">Light (LED on below)</span>
+              <span class="threshold-val" id="thrLuxVal">5000 lux</span>
+            </div>
+            <input type="range" min="500" max="20000" step="500" value="5000" class="slider" id="thrLux">
+          </div>
+          <div class="threshold">
+            <div class="threshold-head">
+              <span class="threshold-label">Photoperiod (LED window)</span>
+              <span class="threshold-val">06:00 – 22:00</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <input type="time" value="06:00" class="btn" style="flex:1; padding:6px; color:var(--text-0); background:var(--bg-2);">
+              <input type="time" value="22:00" class="btn" style="flex:1; padding:6px; color:var(--text-0); background:var(--bg-2);">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EVENT FEED -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Event Log</div>
+          <span style="font-size:11px; color:var(--text-2);">Live · last 24h</span>
+        </div>
+        <div class="card-body event-feed" id="eventFeed">
+          <!-- events injected by JS -->
+        </div>
+      </div>
+
+      <!-- TIME-LAPSE GALLERY -->
+      <div class="card camera-area">
+        <div class="card-header">
+          <div class="card-title">Time-Lapse Gallery</div>
+          <button class="btn" style="padding:4px 10px; font-size:11px;">View All</button>
+        </div>
+        <div class="card-body">
+          <div class="gallery-grid" id="gallery"></div>
+          <div style="font-size:12px; color:var(--text-2); margin-top:12px; text-align:center;">
+            Daily snapshots · auto-captured at 14:00
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DEVICES STATUS -->
+    <div class="card" style="margin-bottom:32px;">
+      <div class="card-header">
+        <div class="card-title">Connected Devices</div>
+        <span style="font-size:11px; color:var(--text-2);">Hardware health & telemetry</span>
+      </div>
+      <div class="card-body">
+        <div class="device-row">
+          <div class="device-name"><span class="device-dot"></span>Arduino Uno R3</div>
+          <div class="device-meta">ATmega328P · 16 MHz · 47% RAM · v1.2.0</div>
+        </div>
+        <div class="device-row camera-area">
+          <div class="device-name"><span class="device-dot"></span>ESP32-CAM</div>
+          <div class="device-meta">Wi-Fi RSSI -54 dBm · 192.168.1.42 · v1.1.3</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name"><span class="device-dot"></span>DHT22 Sensor</div>
+          <div class="device-meta">Single-wire D2 · last read 2s ago</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name"><span class="device-dot"></span>BH1750 Sensor</div>
+          <div class="device-meta">I²C 0x23 · last read 4s ago</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name"><span class="device-dot warn"></span>Capacitive Soil v1.2</div>
+          <div class="device-meta">Analog A0 · calibration drift +2.1%</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name"><span class="device-dot"></span>DS3231 RTC</div>
+          <div class="device-meta">I²C 0x68 · drift 0.3 ppm</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name"><span class="device-dot"></span>microSD Storage</div>
+          <div class="device-meta">8 GB · 312 MB used · 1,847 images</div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /page-dashboard -->
+
+    <!-- ============ PAGE: SENSOR HISTORY ============ -->
+    <div class="page" id="page-history">
+      <div class="topbar">
+        <div>
+          <h1>Sensor History</h1>
+          <div class="topbar-sub">Time-series data · CSV export · last 30 days available</div>
+        </div>
+        <div class="topbar-actions">
+          <select class="input" style="width:auto;" id="histSensor">
+            <option value="all">All sensors</option>
+            <option value="soil">Soil moisture</option>
+            <option value="temp">Temperature</option>
+            <option value="hum">Humidity</option>
+            <option value="lux">Light</option>
+          </select>
+          <button class="btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export CSV
+          </button>
+          <button class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg>
+            Generate Report
+          </button>
+        </div>
+      </div>
+
+      <!-- Statistics summary -->
+      <div class="kpi-grid">
+        <div class="card">
+          <div class="kpi-label">Avg Soil (24h)</div>
+          <div class="kpi-value mono" style="font-size:24px;">38.6<span class="kpi-unit">%</span></div>
+          <div style="font-size:11px; color:var(--text-2); margin-top:6px;">min 22.1 · max 54.3</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Avg Temp (24h)</div>
+          <div class="kpi-value mono" style="font-size:24px;">23.1<span class="kpi-unit">°C</span></div>
+          <div style="font-size:11px; color:var(--text-2); margin-top:6px;">min 19.8 · max 27.4</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Avg Humidity (24h)</div>
+          <div class="kpi-value mono" style="font-size:24px;">62.4<span class="kpi-unit">%</span></div>
+          <div style="font-size:11px; color:var(--text-2); margin-top:6px;">min 48.0 · max 78.2</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Avg Light (daylight)</div>
+          <div class="kpi-value mono" style="font-size:24px;">7.2<span class="kpi-unit">k lux</span></div>
+          <div style="font-size:11px; color:var(--text-2); margin-top:6px;">peak 19.8k at 13:24</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">7-Day Trend</div>
+            <div style="font-size:12px; color:var(--text-2); margin-top:2px;">All sensors · sampled every 5 min</div>
+          </div>
+          <div class="range-tabs">
+            <button class="range-tab" data-h-range="24h">24H</button>
+            <button class="range-tab active" data-h-range="7d">7D</button>
+            <button class="range-tab" data-h-range="30d">30D</button>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:340px;"><canvas id="historyChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Raw Readings (latest 50)</div>
+          <span style="font-size:11px; color:var(--text-2);">Sample interval: 5 s</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th class="num">Soil %</th>
+                <th class="num">Temp °C</th>
+                <th class="num">Humidity %</th>
+                <th class="num">Light lux</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody id="historyTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: SCHEDULES ============ -->
+    <div class="page" id="page-schedules">
+      <div class="topbar">
+        <div>
+          <h1>Schedules</h1>
+          <div class="topbar-sub">Automation rules · time-based actuator control · overrides automation logic</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary" id="newScheduleBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New Schedule
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">Active Schedules</div>
+          <span style="font-size:11px; color:var(--accent);">● 4 enabled · 1 paused</span>
+        </div>
+        <div id="scheduleList">
+          <div class="schedule-row" data-sched="led">
+            <div class="schedule-time">06:00</div>
+            <div class="schedule-meta">
+              <span class="schedule-name">LED Grow Light · Morning ON</span>
+              <span class="schedule-sub">Activates LED · ignores lux threshold while in window</span>
+            </div>
+            <div class="schedule-days">
+              <span class="day-pill on">M</span><span class="day-pill on">T</span><span class="day-pill on">W</span><span class="day-pill on">T</span><span class="day-pill on">F</span><span class="day-pill on">S</span><span class="day-pill on">S</span>
+            </div>
+            <span class="actuator-state" style="background:var(--accent-glow); color:var(--accent);">Active</span>
+            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="schedule-row">
+            <div class="schedule-time">22:00</div>
+            <div class="schedule-meta">
+              <span class="schedule-name">LED Grow Light · Evening OFF</span>
+              <span class="schedule-sub">Photoperiod end · saves energy overnight</span>
+            </div>
+            <div class="schedule-days">
+              <span class="day-pill on">M</span><span class="day-pill on">T</span><span class="day-pill on">W</span><span class="day-pill on">T</span><span class="day-pill on">F</span><span class="day-pill on">S</span><span class="day-pill on">S</span>
+            </div>
+            <span class="actuator-state" style="background:var(--accent-glow); color:var(--accent);">Active</span>
+            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="schedule-row camera-area">
+            <div class="schedule-time">14:00</div>
+            <div class="schedule-meta">
+              <span class="schedule-name">Camera Snapshot · Daily Time-lapse</span>
+              <span class="schedule-sub">ESP32-CAM captures one frame · saved to microSD</span>
+            </div>
+            <div class="schedule-days">
+              <span class="day-pill on">M</span><span class="day-pill on">T</span><span class="day-pill on">W</span><span class="day-pill on">T</span><span class="day-pill on">F</span><span class="day-pill on">S</span><span class="day-pill on">S</span>
+            </div>
+            <span class="actuator-state" style="background:var(--accent-glow); color:var(--accent);">Active</span>
+            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="schedule-row">
+            <div class="schedule-time">08:00</div>
+            <div class="schedule-meta">
+              <span class="schedule-name">Pump · Morning Mist</span>
+              <span class="schedule-sub">Pulse 3 s · regardless of soil moisture · supplements automation</span>
+            </div>
+            <div class="schedule-days">
+              <span class="day-pill on">M</span><span class="day-pill">T</span><span class="day-pill on">W</span><span class="day-pill">T</span><span class="day-pill on">F</span><span class="day-pill">S</span><span class="day-pill">S</span>
+            </div>
+            <span class="actuator-state" style="background:var(--accent-glow); color:var(--accent);">Active</span>
+            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="schedule-row">
+            <div class="schedule-time">19:30</div>
+            <div class="schedule-meta">
+              <span class="schedule-name">Fan · Evening Air Circulation</span>
+              <span class="schedule-sub">Run 10 min · prevents leaf moisture before nighttime</span>
+            </div>
+            <div class="schedule-days">
+              <span class="day-pill on">M</span><span class="day-pill on">T</span><span class="day-pill on">W</span><span class="day-pill on">T</span><span class="day-pill on">F</span><span class="day-pill">S</span><span class="day-pill">S</span>
+            </div>
+            <span class="actuator-state" style="background:var(--bg-3); color:var(--text-2);">Paused</span>
+            <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Upcoming Triggers (next 24h)</div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Time</th><th>Action</th><th>Target</th><th>Source</th><th class="num">In</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>22:00 today</td><td class="name-cell">LED OFF</td><td>Relay CH3 · D5</td><td>Schedule</td><td class="num">3h 12m</td></tr>
+            <tr><td>06:00 tomorrow</td><td class="name-cell">LED ON</td><td>Relay CH3 · D5</td><td>Schedule</td><td class="num">11h 12m</td></tr>
+            <tr><td>08:00 tomorrow</td><td class="name-cell">Pump pulse 3s</td><td>Relay CH1 · D3</td><td>Schedule</td><td class="num">13h 12m</td></tr>
+            <tr class="camera-area"><td>14:00 tomorrow</td><td class="name-cell">Camera capture</td><td>ESP32-CAM</td><td>Schedule</td><td class="num">19h 12m</td></tr>
+            <tr><td>continuous</td><td class="name-cell">Threshold check</td><td>All sensors</td><td>Automation engine</td><td class="num">5s</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: TIME-LAPSE ============ -->
+    <div class="page camera-area" id="page-timelapse">
+      <div class="topbar">
+        <div>
+          <h1>Time-Lapse Gallery</h1>
+          <div class="topbar-sub">1,847 images · 312 MB used · daily snapshots since 2026-01-12</div>
+        <script>
+        // Set to `false` to hide all camera UI parts. Change this variable in the file.
+        const CAMERA_ENABLED = false; // <-- set to true to enable camera UI
+        if (!CAMERA_ENABLED) document.body.classList.add('camera-hidden');
+        </script>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4z"/></svg>
+            Capture Now
+          </button>
+          <button class="btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            Play Time-lapse
+          </button>
+          <button class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export MP4
+          </button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="card">
+          <div class="kpi-label">Total Images</div>
+          <div class="kpi-value mono" style="font-size:24px;">1,847</div>
+          <div style="font-size:11px; color:var(--text-2); margin-top:6px;">~5 per day avg</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Storage Used</div>
+          <div class="kpi-value mono" style="font-size:24px;">312<span class="kpi-unit">MB</span></div>
+          <div class="kpi-bar" style="margin-top:8px;"><div class="kpi-bar-fill" style="width:39%"></div></div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Latest Capture</div>
+          <div class="kpi-value mono" style="font-size:24px;">14:00</div>
+          <div style="font-size:11px; color:var(--text-2); margin-top:6px;">Today · IMG_1847.jpg · 218 KB</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Plant Growth</div>
+          <div class="kpi-value mono" style="font-size:24px; color:var(--accent);">+127<span class="kpi-unit">%</span></div>
+          <div style="font-size:11px; color:var(--text-2); margin-top:6px;">since Day 1 (canopy area)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Captured Frames</div>
+          <div style="display:flex; gap:8px;">
+            <select class="input" style="width:auto;">
+              <option>All time</option><option>Last 7 days</option><option>Last 30 days</option><option>This month</option>
+            </select>
+            <select class="input" style="width:auto;">
+              <option>Sort: newest</option><option>Sort: oldest</option><option>Sort: by size</option>
+            </select>
+          </div>
+        </div>
+        <div class="gallery-grid-large" id="galleryLarge"></div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: DEVICES ============ -->
+    <div class="page" id="page-devices">
+      <div class="topbar">
+        <div>
+          <h1>Connected Devices</h1>
+          <div class="topbar-sub">7 devices · all online · firmware up to date</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>
+            Rescan
+          </button>
+          <button class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Update Firmware
+          </button>
+        </div>
+      </div>
+
+      <div class="device-detail">
+        <div class="device-card-lg">
+          <div class="device-icon-lg">🧠</div>
+          <div class="device-info">
+            <div class="device-info-name">Arduino Uno R3</div>
+            <div class="device-info-meta">ATmega328P · 16 MHz · firmware v1.2.0</div>
+            <div class="metric-grid">
+              <div class="metric-cell"><div class="l">RAM</div><div class="v">47%</div></div>
+              <div class="metric-cell"><div class="l">Flash</div><div class="v">62%</div></div>
+              <div class="metric-cell"><div class="l">Uptime</div><div class="v">7d 14h</div></div>
+              <div class="metric-cell"><div class="l">Status</div><div class="v" style="color:var(--accent)">OK</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="device-card-lg camera-area">
+          <div class="device-icon-lg">📡</div>
+          <div class="device-info">
+            <div class="device-info-name">ESP32-CAM</div>
+            <div class="device-info-meta">Wi-Fi 802.11 · OV2640 · firmware v1.1.3</div>
+            <div class="metric-grid">
+              <div class="metric-cell"><div class="l">RSSI</div><div class="v">-54 dBm</div></div>
+              <div class="metric-cell"><div class="l">IP</div><div class="v">192.168.1.42</div></div>
+              <div class="metric-cell"><div class="l">Heap</div><div class="v">186 KB</div></div>
+              <div class="metric-cell"><div class="l">Status</div><div class="v" style="color:var(--accent)">OK</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">Sensor Modules</div>
+          <span style="font-size:11px; color:var(--text-2);">Last self-test: 4 min ago</span>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Device</th><th>Pin / Bus</th><th>Protocol</th><th class="num">Last Read</th><th class="num">Sample Rate</th><th>Health</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="name-cell">DHT22</td><td>D2</td><td>Single-wire</td><td class="num">2s ago</td><td class="num">5 s</td><td><span class="device-dot"></span> OK</td></tr>
+            <tr><td class="name-cell">BH1750</td><td>I²C 0x23</td><td>I²C 100kHz</td><td class="num">4s ago</td><td class="num">60 s</td><td><span class="device-dot"></span> OK</td></tr>
+            <tr><td class="name-cell">Capacitive Soil v1.2</td><td>A0</td><td>Analog 10-bit</td><td class="num">2s ago</td><td class="num">5 s</td><td><span class="device-dot warn"></span> Drift +2.1%</td></tr>
+            <tr><td class="name-cell">DS3231 RTC</td><td>I²C 0x68</td><td>I²C 100kHz</td><td class="num">1s ago</td><td class="num">1 s</td><td><span class="device-dot"></span> OK</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">Actuators &amp; Storage</div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Device</th><th>Pin</th><th>Driver</th><th class="num">Cycles</th><th class="num">Last Activated</th><th>Health</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="name-cell">Water Pump (3-6V)</td><td>D3 · CH1</td><td>Relay opto</td><td class="num">142</td><td class="num">8 min ago</td><td><span class="device-dot"></span> OK</td></tr>
+            <tr><td class="name-cell">Ventilation Fan (5V)</td><td>D4 · CH2</td><td>Relay opto</td><td class="num">38</td><td class="num">2h ago</td><td><span class="device-dot"></span> OK</td></tr>
+            <tr><td class="name-cell">LED Grow Light</td><td>D5 · CH3</td><td>Relay opto</td><td class="num">14</td><td class="num">currently ON</td><td><span class="device-dot"></span> OK</td></tr>
+            <tr><td class="name-cell">Buzzer</td><td>D6 · CH4</td><td>Relay opto</td><td class="num">3</td><td class="num">2d ago</td><td><span class="device-dot"></span> OK</td></tr>
+            <tr><td class="name-cell">microSD 8GB</td><td>SDIO</td><td>FAT32</td><td class="num">1,847 writes</td><td class="num">14:00 today</td><td><span class="device-dot"></span> 312/8000 MB</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Network &amp; Diagnostics</div>
+        </div>
+        <div class="metric-grid" style="grid-template-columns:repeat(4,1fr); gap:12px;">
+          <div class="metric-cell"><div class="l">Wi-Fi SSID</div><div class="v">UTM_IoT_Lab</div></div>
+          <div class="metric-cell"><div class="l">Local IP</div><div class="v">192.168.1.42</div></div>
+          <div class="metric-cell"><div class="l">MAC</div><div class="v">A4:CF:12:8B:1C:3E</div></div>
+          <div class="metric-cell"><div class="l">Gateway</div><div class="v">192.168.1.1</div></div>
+          <div class="metric-cell"><div class="l">MQTT Broker</div><div class="v">mqtt.greenpod.io</div></div>
+          <div class="metric-cell"><div class="l">QoS</div><div class="v">1 (at-least-once)</div></div>
+          <div class="metric-cell"><div class="l">Packets sent</div><div class="v">12,408</div></div>
+          <div class="metric-cell"><div class="l">Packets dropped</div><div class="v" style="color:var(--accent)">0</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: SETTINGS ============ -->
+    <div class="page" id="page-settings">
+      <div class="topbar">
+        <div>
+          <h1>Settings</h1>
+          <div class="topbar-sub">System preferences · profile · integrations</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn">Discard</button>
+          <button class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">Profile</div></div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Account name</div>
+            <div class="settings-help">Used in event logs and shared dashboards</div>
+          </div>
+          <input class="input" value="Dumitru Racovitsa">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Email</div>
+            <div class="settings-help">Receives alerts and weekly summaries</div>
+          </div>
+          <input class="input" value="dumitru.racovitsa@gmail.com">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Pod nickname</div>
+            <div class="settings-help">Display name for this greenhouse</div>
+          </div>
+          <input class="input" value="Living Room Pod #1">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Timezone</div>
+            <div class="settings-help">Used for schedules and timestamps</div>
+          </div>
+          <select class="input">
+            <option>Europe/Chișinău (UTC+2)</option>
+            <option>Europe/Bucharest (UTC+2)</option>
+            <option>UTC</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">Sensor Calibration</div></div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Soil sensor — dry value</div>
+            <div class="settings-help">Raw ADC reading in air (calibration zero)</div>
+          </div>
+          <input class="input" type="number" value="820">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Soil sensor — wet value</div>
+            <div class="settings-help">Raw ADC reading fully submerged in water</div>
+          </div>
+          <input class="input" type="number" value="320">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Sensor poll interval</div>
+            <div class="settings-help">How often Arduino reads soil/temp/humidity</div>
+          </div>
+          <select class="input">
+            <option>1 second</option><option selected>5 seconds (default)</option><option>15 seconds</option><option>30 seconds</option><option>1 minute</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Light poll interval</div>
+            <div class="settings-help">BH1750 sampling rate (less critical)</div>
+          </div>
+          <select class="input">
+            <option>30 seconds</option><option selected>60 seconds (default)</option><option>5 minutes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">Notifications</div></div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Email on critical alerts</div>
+            <div class="settings-help">Sensor faults, overheat, water reservoir empty</div>
+          </div>
+          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Push notifications (browser)</div>
+            <div class="settings-help">Real-time alerts when dashboard tab is open</div>
+          </div>
+          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Weekly digest</div>
+            <div class="settings-help">Summary of plant growth, water usage, alerts</div>
+          </div>
+          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Buzzer on alerts</div>
+            <div class="settings-help">Physical buzzer fires when threshold breached</div>
+          </div>
+          <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">Integrations &amp; API</div></div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">MQTT broker URL</div>
+            <div class="settings-help">Telemetry publish endpoint (TLS recommended)</div>
+          </div>
+          <input class="input mono" value="mqtts://mqtt.greenpod.io:8883">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">API key</div>
+            <div class="settings-help">For external integrations (Home Assistant, IFTTT)</div>
+          </div>
+          <input class="input mono" value="gpd_••••••••••••••••3a4f">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Home Assistant</div>
+            <div class="settings-help">Auto-discovery via MQTT</div>
+          </div>
+          <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title" style="color:var(--danger)">Danger Zone</div></div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Reset thresholds to defaults</div>
+            <div class="settings-help">Revert all automation thresholds to factory values</div>
+          </div>
+          <button class="btn">Reset</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Clear telemetry history</div>
+            <div class="settings-help">Removes all logged sensor data; images are kept</div>
+          </div>
+          <button class="btn" style="border-color:var(--danger); color:var(--danger);">Clear data</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Factory reset</div>
+            <div class="settings-help">Wipe EEPROM config on Arduino · re-pair required</div>
+          </div>
+          <button class="btn" style="border-color:var(--danger); color:var(--danger);">Factory reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: HELP ============ -->
+    <div class="page" id="page-help">
+      <div class="topbar">
+        <div>
+          <h1>Help &amp; Documentation</h1>
+          <div class="topbar-sub">Setup guides · troubleshooting · API reference</div>
+        </div>
+        <div class="topbar-actions">
+          <input class="input" placeholder="Search docs…" style="width:300px;">
+        </div>
+      </div>
+
+      <div class="help-grid">
+        <div class="help-card camera-area">
+          <div class="help-icon">🚀</div>
+          <div class="help-title">Getting Started</div>
+          <div class="help-desc">Wire up Arduino, flash firmware, connect ESP32-CAM to Wi-Fi, and pair with your dashboard in under 10 minutes.</div>
+        </div>
+        <div class="help-card">
+          <div class="help-icon">🔌</div>
+          <div class="help-title">Hardware Setup</div>
+          <div class="help-desc">Pin mapping, wiring diagrams, BOM list, and safe handling of relay-driven 5V actuators.</div>
+        </div>
+        <div class="help-card">
+          <div class="help-icon">⚙️</div>
+          <div class="help-title">Automation Rules</div>
+          <div class="help-desc">How thresholds work, schedule precedence, and combining manual overrides with automation logic.</div>
+        </div>
+        <div class="help-card">
+          <div class="help-icon">📊</div>
+          <div class="help-title">Sensor Calibration</div>
+          <div class="help-desc">Two-point calibration for the capacitive soil sensor; recalibration warnings and drift correction.</div>
+        </div>
+        <div class="help-card">
+          <div class="help-icon">📡</div>
+          <div class="help-title">MQTT &amp; API</div>
+          <div class="help-desc">Topic structure, payload schema, and example integrations with Home Assistant and Node-RED.</div>
+        </div>
+        <div class="help-card camera-area">
+          <div class="help-icon">🔧</div>
+          <div class="help-title">Troubleshooting</div>
+          <div class="help-desc">Sensor offline, ESP32-CAM Wi-Fi disconnects, pump not responding, image capture failures.</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">Frequently Asked Questions</div></div>
+        <div id="faqList">
+          <div class="faq-row open">
+            <div class="faq-q">Why is my soil moisture reading drifting over time?</div>
+            <div class="faq-a">Capacitive soil sensors gradually accumulate mineral deposits at the probe surface, which alters the dielectric reading. Recalibrate every 4–6 weeks via Settings → Sensor Calibration. Wipe the probe clean with distilled water before measuring "dry" and "wet" reference values.</div>
+          </div>
+          <div class="faq-row">
+            <div class="faq-q">Can the system run if Wi-Fi goes down?</div>
+            <div class="faq-a">Yes — the Arduino performs all sensor polling and threshold-based actuation locally (edge computing). Wi-Fi is only required for the dashboard, time-lapse uploads, and MQTT telemetry. Schedules and automation continue normally offline; data is queued on the microSD and synced when Wi-Fi returns.</div>
+          </div>
+          <div class="faq-row camera-area">
+            <div class="faq-q">How do I add a second pod or greenhouse?</div>
+            <div class="faq-a">Each pod runs an independent Arduino + ESP32-CAM pair. Provision the new pair via Devices → "+ Add device", scan the QR code printed on the ESP32-CAM, and the dashboard will auto-discover its sensors and actuators. Multi-pod overview lands in v1.2.</div>
+          </div>
+          <div class="faq-row">
+            <div class="faq-q">What happens if the water reservoir runs dry?</div>
+            <div class="faq-a">If a pump cycle activates but soil moisture does not rise within 5 minutes, the system flags a "reservoir likely empty" warning, sounds the buzzer (if enabled), and emails you. The pump is throttled to one attempt per hour to prevent dry-running damage.</div>
+          </div>
+          <div class="faq-row">
+            <div class="faq-q">Is my data sent to any cloud service?</div>
+            <div class="faq-a">By default, telemetry stays on your local Wi-Fi network. Enabling MQTT in Settings publishes data to the configured broker (yours or our hosted one). Image captures stay on the microSD unless you opt in to cloud backup. No analytics or telemetry are collected without your consent.</div>
+          </div>
+          <div class="faq-row">
+            <div class="faq-q">How accurate are the temperature and humidity readings?</div>
+            <div class="faq-a">DHT22 spec: ±0.5°C and ±2–5% RH. For higher precision, swap to a SHT31 (±0.3°C, ±2% RH) — the firmware auto-detects the sensor on the I²C bus.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Resources</div></div>
+        <div class="device-row">
+          <div class="device-name">📘 User manual (PDF)</div>
+          <div class="device-meta">v1.2 · 48 pages · last updated 2026-04-18</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name">🛠 Hardware schematic</div>
+          <div class="device-meta">SVG / KiCad project · open source (MIT)</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name">💻 API reference</div>
+          <div class="device-meta">REST + MQTT · OpenAPI 3.1 spec</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name">📂 GitHub repository</div>
+          <div class="device-meta">github.com/utm-iot/greenpod · firmware + dashboard</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name">💬 Community forum</div>
+          <div class="device-meta">community.greenpod.io · 2,134 members</div>
+        </div>
+        <div class="device-row">
+          <div class="device-name">✉️ Contact support</div>
+          <div class="device-meta">support@greenpod.io · response within 24h</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+// ====================================================================
+// REAL API LAYER — talks to the Arduino over HTTP (CORS-enabled).
+// The Arduino host URL is stored in localStorage; users can edit it
+// in the top-bar input. The dashboard polls /api/state every 2 s and
+// gracefully degrades to "offline" if requests fail.
+// ====================================================================
+const HOST_KEY  = 'greenpod.host';
+const TOKEN_KEY = 'greenpod.token';
+
+// Soil-moisture calibration ADC anchors. Defaults match config.h, but they're
+// overwritten on every /api/state response so the slider always speaks the
+// same scale the firmware does.
+let SOIL_RAW_WET = 400;
+let SOIL_RAW_DRY = 700;
+
+const API = {
+  host:  localStorage.getItem(HOST_KEY)  || '',
+  token: localStorage.getItem(TOKEN_KEY) || '',
+  online: false,
+  lastError: null,
+  authRequired: false,
+  // Last known device state. Keeps the UI populated between/after polls.
+  state: {
+    soil: 0, temp: 0, hum: 0, lux: 0,
+    pump: false, fan: false, led: false, buzzer: false,
+    thresholds: { soil: 30, hum: 70, temp: 28, lux: 500 },
+    mode: 'auto',
+    uptime: 0,
+    available: {},
+    raw: null
+  },
+  // Rolling buffer of recent samples for the live chart.
+  history_buffer: { labels: [], soil: [], temp: [], hum: [], lux: [] },
+
+  setHost(h) {
+    this.host = (h || '').trim().replace(/\/$/, '');
+    localStorage.setItem(HOST_KEY, this.host);
+  },
+  setToken(t) {
+    this.token = (t || '').trim();
+    localStorage.setItem(TOKEN_KEY, this.token);
+  },
+
+  url(path) { return this.host ? (this.host + path) : path; },
+
+  async fetchJson(path, opts = {}) {
+    if (!this.host) throw new Error('host not set');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    try {
+      const headers = { ...(opts.headers || {}) };
+      if (this.token) headers['X-Auth-Token'] = this.token;
+      const res = await fetch(this.url(path), { ...opts, headers, signal: ctrl.signal });
+      if (res.status === 401) throw new Error('unauthorized (check API token)');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+
+  async tick() {
+    try {
+      const s = await this.fetchJson('/api/state');
+      // Adopt the device's calibration so the slider always speaks the same
+      // raw-ADC scale the firmware does.
+      if (s.thresholds) {
+        if (typeof s.thresholds.soilWet === 'number') SOIL_RAW_WET = s.thresholds.soilWet;
+        // soilDry is the *trigger* (user-tunable), so don't overwrite the dry
+        // calibration anchor from it — anchor stays at the wider envelope.
+      }
+      // Map the wire format into the legacy shape used by the UI helpers.
+      this.state = {
+        soil: s.soil ?? 0,
+        temp: s.temp ?? 0,
+        hum:  s.hum  ?? 0,
+        lux:  s.lux  ?? 0,
+        pump: !!s.pump,
+        fan:  !!s.fan,
+        led:  !!s.led,
+        buzzer: false, // no hardware buzzer driver yet
+        thresholds: {
+          soil: rawToSoilPct(s.thresholds?.soilDry ?? SOIL_RAW_DRY),
+          hum:  s.thresholds?.hum  ?? 70,
+          temp: s.thresholds?.temp ?? 28,
+          lux:  s.thresholds?.lux  ?? 500
+        },
+        mode: s.mode || 'auto',
+        uptime: s.uptime ?? 0,
+        available: s.available ?? {},
+        raw: s
+      };
+      this.online = true;
+      this.lastError = null;
+      this.authRequired = !!s.auth;
+      pushHistorySample(this.state);
+      return this.state;
+    } catch (e) {
+      this.online = false;
+      this.lastError = e.message;
+      return this.state; // last known
+    }
+  },
+
+  async command(path, params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.fetchJson(`${path}?${qs}`, { method: 'POST' });
+  }
+};
+
+// Soil moisture: dashboard slider works in % but the Arduino stores a raw ADC
+// threshold. Use the calibration constants above to convert.
+function soilPctToRaw(pct) {
+  pct = Math.max(0, Math.min(100, +pct || 0));
+  return Math.round(SOIL_RAW_DRY - (pct / 100) * (SOIL_RAW_DRY - SOIL_RAW_WET));
+}
+function rawToSoilPct(raw) {
+  raw = Math.max(SOIL_RAW_WET, Math.min(SOIL_RAW_DRY, +raw || SOIL_RAW_DRY));
+  return Math.round((SOIL_RAW_DRY - raw) / (SOIL_RAW_DRY - SOIL_RAW_WET) * 100);
+}
+
+// Buffer last N live samples so the trend chart shows real device data.
+const MAX_HISTORY = 200;
+function pushHistorySample(s) {
+  const buf = API.history_buffer;
+  const ts = new Date();
+  buf.labels.push(ts.toLocaleTimeString('en-GB', { hour12: false }));
+  buf.soil.push(+s.soil.toFixed(1));
+  buf.temp.push(+s.temp.toFixed(1));
+  buf.hum.push(+s.hum.toFixed(1));
+  buf.lux.push(+(s.lux/1000).toFixed(2));
+  while (buf.labels.length > MAX_HISTORY) {
+    buf.labels.shift(); buf.soil.shift(); buf.temp.shift(); buf.hum.shift(); buf.lux.shift();
+  }
+}
+
+// ====================================================================
+// CHART
+// ====================================================================
+const ctx = document.getElementById('trendChart').getContext('2d');
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const grid = '#1d2622';
+const tickColor = '#6b7872';
+
+function buildChart(range) {
+  const data = sliceHistory(range);
+  if (window._chart) window._chart.destroy();
+  window._chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [
+        { label: 'Soil', data: data.soil, borderColor: css('--accent'), backgroundColor: 'rgba(74,222,128,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+        { label: 'Temp', data: data.temp, borderColor: css('--warn'), backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+        { label: 'Hum',  data: data.hum,  borderColor: css('--info'), backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+        { label: 'Lux',  data: data.lux,  borderColor: css('--purple'), backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 2, borderDash: [3,3] }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#11161e',
+          borderColor: '#2c3933',
+          borderWidth: 1,
+          padding: 10,
+          titleColor: '#e8efe9',
+          bodyColor: '#a8b5ac',
+          titleFont: { family: 'JetBrains Mono', size: 11 },
+          bodyFont: { family: 'Inter', size: 12 }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: grid, drawBorder: false },
+          ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 }
+        },
+        y: {
+          grid: { color: grid, drawBorder: false },
+          ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 } }
+        }
+      }
+    }
+  });
+}
+// Slice the live buffer into a {labels, soil, temp, hum, lux} window. The
+// range tabs control how many of the most-recent samples are shown.
+function sliceHistory(range) {
+  const buf = API.history_buffer;
+  const want = { '1h': 30, '24h': 120, '7d': 200, '30d': 200 }[range] || 120;
+  const start = Math.max(0, buf.labels.length - want);
+  return {
+    labels: buf.labels.slice(start),
+    soil:   buf.soil.slice(start),
+    temp:   buf.temp.slice(start),
+    hum:    buf.hum.slice(start),
+    lux:    buf.lux.slice(start)
+  };
+}
+
+buildChart('24h');
+
+// Range tabs
+document.getElementById('rangeTabs').addEventListener('click', (e) => {
+  if (!e.target.matches('.range-tab')) return;
+  document.querySelectorAll('.range-tab').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  const r = e.target.dataset.range;
+  currentRange = r;
+  document.getElementById('rangeLabel').textContent =
+    r === '1h' ? '1 hour' : r === '24h' ? '24 hours' : r === '7d' ? '7 days' : '30 days';
+  buildChart(r);
+});
+
+// ====================================================================
+// LIVE TICKER
+// ====================================================================
+function setKpi(id, val, unit, percent) {
+  const card = document.getElementById('kpi-' + id);
+  const p = Math.max(0, Math.min(100, percent));
+  card.querySelector('[data-val]').textContent = typeof val === 'number' ? (Number.isInteger(val) ? val : val.toFixed(1)) : val;
+  card.querySelector('.kpi-bar-fill').style.width = p + '%';
+}
+function formatUptime(sec) {
+  if (!sec || sec < 0) return '--';
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m ${sec % 60}s`;
+}
+
+function setConnState(online, label) {
+  const pill  = document.getElementById('connPill');
+  const dot   = document.getElementById('connDot');
+  const lbl   = document.getElementById('connLabel');
+  lbl.textContent = label || (online ? 'Online' : 'Offline');
+  pill.style.borderColor = online ? 'var(--line-2)' : 'rgba(248,113,113,0.4)';
+  dot.style.background = online ? 'var(--accent)' : 'var(--danger)';
+  dot.style.animation  = online ? '' : 'none'; // stop pulse when offline
+}
+
+function syncActuatorUI(state) {
+  document.querySelectorAll('.actuator').forEach(card => {
+    const id = card.dataset.act;
+    if (!(id in state)) return;
+    const on = !!state[id];
+    const checkbox = card.querySelector('input[type=checkbox]');
+    if (checkbox.checked !== on) checkbox.checked = on;
+    card.classList.toggle('on', on);
+    const stateEl = card.querySelector('.actuator-state');
+    if (stateEl) stateEl.textContent = on ? 'ON' : 'OFF';
+  });
+}
+
+// Slider sync: don't fight a user who is mid-drag. We mark a slider "dirty"
+// for SYNC_LOCKOUT_MS after the user touches it; until then the device-side
+// value is ignored. After the lockout expires the slider once again mirrors
+// what the device persists in EEPROM (so reloading the page shows real state).
+const SYNC_LOCKOUT_MS = 3000;
+const sliderTouchedAt = {};
+function markSliderTouched(key) { sliderTouchedAt[key] = Date.now(); }
+function isSliderLocked(key) { return (Date.now() - (sliderTouchedAt[key] || 0)) < SYNC_LOCKOUT_MS; }
+
+function syncThresholdsUI(state) {
+  const t = state.thresholds || {};
+  const set = (id, valId, unit, key, value) => {
+    if (value == null) return;
+    if (isSliderLocked(key)) return;
+    const el = document.getElementById(id);
+    const lbl = document.getElementById(valId);
+    if (!el || !lbl) return;
+    if (Math.abs(+el.value - value) < 0.5) return; // already in sync
+    el.value = value;
+    lbl.textContent = `${value} ${unit}`;
+  };
+  set('thrSoil', 'thrSoilVal', '%',   'soilDry', t.soil);
+  set('thrHum',  'thrHumVal',  '%',   'hum',     t.hum);
+  set('thrTemp', 'thrTempVal', '°C',  'temp',    t.temp);
+  set('thrLux',  'thrLuxVal',  'lux', 'lux',     t.lux);
+}
+
+function syncModeUI(mode) {
+  const isAuto = mode === 'auto';
+  const btn = document.getElementById('modeBtn');
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>${isAuto ? 'Auto Mode' : 'Manual Mode'}`;
+  btn.classList.toggle('btn-primary', isAuto);
+}
+
+async function refresh() {
+  const wasOnline = API.online;
+  const s = await API.tick();
+
+  if (!API.online) {
+    setConnState(false, API.host ? 'Offline' : 'No host set');
+    if (wasOnline) pushToast({ title: 'Disconnected', body: API.lastError || 'Cannot reach device', kind: 'warn' });
+    return;
+  }
+  setConnState(true, 'Online');
+  if (!wasOnline) pushToast({ title: 'Connected', body: 'Live telemetry resumed', kind: 'success' });
+
+  setKpi('soil', s.soil, '%', s.soil);
+  setKpi('temp', s.temp, '°C', (s.temp - 15) / 25 * 100);
+  setKpi('hum',  s.hum,  '%', s.hum);
+  setKpi('lux',  Math.round(s.lux), 'lux', Math.min(100, s.lux / 250));
+
+  document.getElementById('uptime').textContent = formatUptime(s.uptime);
+  syncActuatorUI(s);
+  syncModeUI(s.mode);
+  syncThresholdsUI(s);
+
+  // Live-append to chart from the rolling buffer (re-slice for current range).
+  const c = window._chart;
+  if (c) {
+    const slice = sliceHistory(currentRange);
+    c.data.labels = slice.labels;
+    c.data.datasets[0].data = slice.soil;
+    c.data.datasets[1].data = slice.temp;
+    c.data.datasets[2].data = slice.hum;
+    c.data.datasets[3].data = slice.lux;
+    c.update('none');
+  }
+}
+let currentRange = '24h';
+setInterval(refresh, 2000);
+refresh();
+
+// Live clock
+function tickClock() {
+  const d = new Date();
+  document.getElementById('liveClock').textContent =
+    d.toLocaleTimeString('en-GB', { hour12: false });
+}
+tickClock(); setInterval(tickClock, 1000);
+
+// ====================================================================
+// THRESHOLDS
+// ====================================================================
+const sliders = [
+  ['thrSoil', 'thrSoilVal', '%',   'soilDry', v => soilPctToRaw(v)],
+  ['thrHum',  'thrHumVal',  '%',   'hum',     v => v],
+  ['thrTemp', 'thrTempVal', '°C',  'temp',    v => v],
+  ['thrLux',  'thrLuxVal',  'lux', 'lux',     v => v]
+];
+const thresholdDebounce = {};
+sliders.forEach(([id, vid, unit, key, mapper]) => {
+  const el = document.getElementById(id);
+  const valEl = document.getElementById(vid);
+  el.addEventListener('input', () => {
+    markSliderTouched(key); // freeze auto-sync from /api/state for SYNC_LOCKOUT_MS
+    valEl.textContent = `${el.value} ${unit}`;
+    clearTimeout(thresholdDebounce[key]);
+    thresholdDebounce[key] = setTimeout(async () => {
+      try {
+        await API.command('/api/threshold', { key, value: mapper(el.value) });
+        pushEvent({ tag: 'info', tagText: 'CFG', body: `Threshold ${key} → ${el.value} ${unit}` });
+      } catch (e) {
+        pushToast({ title: 'Threshold update failed', body: e.message, kind: 'danger' });
+      }
+    }, 350);
+  });
+});
+
+// ====================================================================
+// ACTUATOR TOGGLES
+// ====================================================================
+const ACTUATOR_REMOTE_IDS = ['pump', 'fan', 'led']; // buzzer not wired on device
+document.querySelectorAll('.actuator').forEach(card => {
+  const checkbox = card.querySelector('input[type=checkbox]');
+  const stateEl = card.querySelector('.actuator-state');
+  checkbox.addEventListener('change', async () => {
+    const on = checkbox.checked;
+    card.classList.toggle('on', on);
+    stateEl.textContent = on ? 'ON' : 'OFF';
+    const id = card.dataset.act;
+    const name = card.querySelector('.actuator-name').textContent;
+
+    if (!ACTUATOR_REMOTE_IDS.includes(id)) {
+      // No hardware-side handler; keep behavior local.
+      pushToast({ title: `${name} ${on ? 'activated' : 'deactivated'}`, body: 'Local toggle (no device endpoint)', kind: 'warn' });
+      return;
+    }
+
+    if (API.state.mode !== 'manual') {
+      pushToast({ title: 'Switch to Manual Mode first', body: 'Auto mode will override manual commands', kind: 'warn' });
+    }
+
+    try {
+      await API.command('/api/actuator', { id, state: on ? 'on' : 'off' });
+      pushToast({ title: `${name} ${on ? 'activated' : 'deactivated'}`, body: `Manual override sent to device`, kind: on ? 'success' : 'warn' });
+      pushEvent({ tag: on ? 'success' : 'warn', tagText: on ? 'ACT' : 'OFF', body: `${name} ${on ? 'turned on' : 'turned off'} (manual)` });
+    } catch (e) {
+      // Revert UI on failure
+      checkbox.checked = !on;
+      card.classList.toggle('on', !on);
+      stateEl.textContent = (!on) ? 'ON' : 'OFF';
+      pushToast({ title: `${name}: command failed`, body: e.message, kind: 'danger' });
+    }
+  });
+});
+
+// ====================================================================
+// EVENT FEED
+// ====================================================================
+const initialEvents = [
+  { mins: 1, tag: 'success', tagText: 'AUTO', body: 'Soil moisture restored to 42%, irrigation cycle complete' },
+  { mins: 4, tag: 'info',    tagText: 'SENS', body: 'Sensor sweep · 4 sensors responded · all OK' },
+  { mins: 18, tag: 'warn',   tagText: 'LOW',  body: 'Soil moisture dropped below 30%, triggering pump' },
+  { mins: 32, tag: 'info',   tagText: 'CAM',  body: 'Hourly snapshot saved · IMG_0427.jpg (218 KB)' },
+  { mins: 58, tag: 'success',tagText: 'LED',  body: 'LED grow light ON (lux 1240 < 5000, photoperiod active)' },
+  { mins: 84, tag: 'info',   tagText: 'NET',  body: 'ESP32-CAM published telemetry batch · 200 OK' },
+  { mins: 121, tag: 'warn',  tagText: 'CAL',  body: 'Soil sensor drift detected, recalibration recommended' },
+  { mins: 156, tag: 'danger',tagText: 'ALERT',body: 'Buzzer fired · temperature spike to 31.2 °C' },
+  { mins: 200, tag: 'success',tagText: 'OK',  body: 'Fan ON, temperature stabilized' },
+  { mins: 320, tag: 'info',  tagText: 'SYS',  body: 'Daily backup complete · 1,847 images on microSD' }
+];
+function fmtAgo(min) {
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  if (min < 1440) return `${Math.floor(min/60)}h ago`;
+  return `${Math.floor(min/1440)}d ago`;
+}
+function pushEvent(e) {
+  // If camera UI is hidden, skip camera-tagged events
+  if (document.body.classList && document.body.classList.contains('camera-hidden') && (e.tagText === 'CAM')) return;
+  const feed = document.getElementById('eventFeed');
+  const div = document.createElement('div');
+  div.className = 'event';
+  div.innerHTML = `<span class="event-time">just now</span><div class="event-body"><span class="event-tag ${e.tag}">${e.tagText || e.tag}</span>${e.body}</div>`;
+  feed.insertBefore(div, feed.firstChild);
+  if (feed.children.length > 50) feed.removeChild(feed.lastChild);
+}
+function renderFeed() {
+  const feed = document.getElementById('eventFeed');
+  feed.innerHTML = '';
+  const hideCam = document.body.classList && document.body.classList.contains('camera-hidden');
+  initialEvents.forEach(e => {
+    if (hideCam && e.tagText === 'CAM') return;
+    const div = document.createElement('div');
+    div.className = 'event';
+    div.innerHTML = `<span class="event-time">${fmtAgo(e.mins)}</span><div class="event-body"><span class="event-tag ${e.tag}">${e.tagText}</span>${e.body}</div>`;
+    feed.appendChild(div);
+  });
+}
+renderFeed();
+
+// ====================================================================
+// GALLERY (mock plant growth visualization)
+// ====================================================================
+const gallery = document.getElementById('gallery');
+['🌱','🌱','🌿','🌿','🌿','🪴','🪴','🌳'].forEach((emoji, i) => {
+  const div = document.createElement('div');
+  div.className = 'gallery-item';
+  div.innerHTML = `<span class="leaf">${emoji}</span><span class="day">D${i+1}</span>`;
+  gallery.appendChild(div);
+});
+
+// ====================================================================
+// TOASTS
+// ====================================================================
+function pushToast({ title, body, kind = 'success' }) {
+  const stack = document.getElementById('toastStack');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (kind === 'success' ? '' : kind);
+  t.innerHTML = `<div><div class="toast-title">${title}</div><div class="toast-body">${body}</div></div>`;
+  stack.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(100%)'; t.style.transition = '0.25s'; }, 3500);
+  setTimeout(() => t.remove(), 3800);
+}
+
+// Top-bar buttons
+document.getElementById('snapshotBtn').addEventListener('click', async () => {
+  try {
+    await API.command('/api/snapshot');
+    pushToast({ title: 'Snapshot triggered', body: 'ESP32-CAM capturing now…', kind: 'success' });
+    pushEvent({ tag: 'info', tagText: 'CAM', body: 'Manual snapshot requested via dashboard' });
+  } catch (e) {
+    pushToast({ title: 'Snapshot failed', body: e.message, kind: 'danger' });
+  }
+});
+
+const modeBtn = document.getElementById('modeBtn');
+modeBtn.addEventListener('click', async () => {
+  const next = API.state.mode === 'auto' ? 'manual' : 'auto';
+  try {
+    await API.command('/api/mode', { value: next });
+    API.state.mode = next;
+    syncModeUI(next);
+    pushToast({
+      title: 'Mode switched',
+      body: next === 'auto' ? 'Automation engine resumed' : 'Manual override active',
+      kind: next === 'auto' ? 'success' : 'warn'
+    });
+  } catch (e) {
+    pushToast({ title: 'Mode switch failed', body: e.message, kind: 'danger' });
+  }
+});
+
+// Host input (top-bar): allow user to point the dashboard at the Arduino.
+const hostInput = document.getElementById('hostInput');
+hostInput.value = API.host;
+hostInput.addEventListener('change', () => {
+  API.setHost(hostInput.value);
+  API.history_buffer = { labels: [], soil: [], temp: [], hum: [], lux: [] };
+  pushToast({ title: 'Host updated', body: API.host || '(empty)', kind: 'success' });
+  refresh();
+});
+
+// API token (top-bar): sent as X-Auth-Token header on every request. Empty
+// means "no auth" — should match firmware secrets.h:API_TOKEN.
+const tokenInput = document.getElementById('tokenInput');
+tokenInput.value = API.token;
+tokenInput.addEventListener('change', () => {
+  API.setToken(tokenInput.value);
+  pushToast({ title: 'API token updated', body: API.token ? '(set)' : '(cleared)', kind: 'success' });
+  refresh();
+});
+
+// ====================================================================
+// SPA ROUTING
+// ====================================================================
+const ROUTES = {
+  dashboard: { title: 'Dashboard', init: () => {} },
+  history:   { title: 'Sensor History', init: initHistory },
+  schedules: { title: 'Schedules', init: () => {} },
+  timelapse: { title: 'Time-Lapse', init: initTimelapse },
+  devices:   { title: 'Devices', init: () => {} },
+  settings:  { title: 'Settings', init: () => {} },
+  help:      { title: 'Help', init: initHelp }
+};
+const routeInitialized = {};
+
+function navigate(route) {
+  if (!ROUTES[route]) route = 'dashboard';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + route).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.route === route));
+  if (!routeInitialized[route]) {
+    ROUTES[route].init();
+    routeInitialized[route] = true;
+  }
+  if (location.hash !== '#' + route) location.hash = route;
+  document.title = `GreenPod · ${ROUTES[route].title}`;
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+document.querySelectorAll('.nav-item').forEach(n => {
+  n.addEventListener('click', () => navigate(n.dataset.route));
+});
+window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
+const initial = location.hash.slice(1) || 'dashboard';
+if (initial !== 'dashboard') navigate(initial);
+
+// ============== HISTORY PAGE ==============
+function initHistory() {
+  // The Arduino does not store historical samples, so the chart shows the
+  // live rolling buffer captured by the dashboard since it was opened.
+  const data = sliceHistory('7d');
+  const hctx = document.getElementById('historyChart').getContext('2d');
+  new Chart(hctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [
+        { label: 'Soil', data: data.soil, borderColor: css('--accent'), backgroundColor: 'rgba(74,222,128,0.06)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.8 },
+        { label: 'Temp', data: data.temp, borderColor: css('--warn'), tension: 0.4, pointRadius: 0, borderWidth: 1.8 },
+        { label: 'Hum',  data: data.hum,  borderColor: css('--info'), tension: 0.4, pointRadius: 0, borderWidth: 1.8 },
+        { label: 'Lux',  data: data.lux,  borderColor: css('--purple'), tension: 0.4, pointRadius: 0, borderWidth: 1.8, borderDash: [3,3] }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#11161e', borderColor: '#2c3933', borderWidth: 1, padding: 10, titleColor: '#e8efe9', bodyColor: '#a8b5ac' } },
+      scales: {
+        x: { grid: { color: '#1d2622' }, ticks: { color: '#6b7872', maxRotation: 0 } },
+        y: { grid: { color: '#1d2622' }, ticks: { color: '#6b7872' } }
+      }
+    }
+  });
+
+  // Populate raw readings table from the live buffer (most recent first).
+  const tbody = document.getElementById('historyTable');
+  tbody.innerHTML = '';
+  const buf = API.history_buffer;
+  for (let i = buf.labels.length - 1; i >= 0 && tbody.children.length < 50; i--) {
+    const badge = (i === buf.labels.length - 1)
+      ? '<span class="event-tag success">LIVE</span>' : '—';
+    tbody.insertAdjacentHTML('beforeend',
+      `<tr>
+        <td>${buf.labels[i]}</td>
+        <td class="num">${buf.soil[i].toFixed(1)}</td>
+        <td class="num">${buf.temp[i].toFixed(1)}</td>
+        <td class="num">${buf.hum[i].toFixed(1)}</td>
+        <td class="num">${Math.round(buf.lux[i] * 1000)}</td>
+        <td>${badge}</td>
+      </tr>`);
+  }
+  if (tbody.children.length === 0) {
+    tbody.insertAdjacentHTML('beforeend',
+      `<tr><td colspan="6" style="text-align:center;color:var(--text-2);padding:20px;">Waiting for live samples…</td></tr>`);
+  }
+}
+
+// ============== TIMELAPSE PAGE ==============
+function initTimelapse() {
+  const galleryLarge = document.getElementById('galleryLarge');
+  const stages = ['🌱','🌱','🌱','🌿','🌿','🌿','🌿','🪴','🪴','🪴','🌳','🌳','🌳','🌳','🌳','🌳','🌳','🌳'];
+  stages.forEach((emoji, i) => {
+    const day = i + 1;
+    const date = new Date(2026, 0, 12);
+    date.setDate(date.getDate() + i * 2);
+    const div = document.createElement('div');
+    div.className = 'gallery-item-large';
+    div.innerHTML = `
+      <span class="leaf">${emoji}</span>
+      <div class="meta">
+        <span>D${day}</span>
+        <span>${date.toLocaleDateString('en-GB', { day:'2-digit', month:'short' })}</span>
+      </div>`;
+    galleryLarge.appendChild(div);
+  });
+}
+
+// ============== HELP PAGE ==============
+function initHelp() {
+  document.querySelectorAll('#faqList .faq-row').forEach(row => {
+    row.addEventListener('click', () => row.classList.toggle('open'));
+  });
+}
+
+// ============== SCHEDULE NEW BUTTON ==============
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#newScheduleBtn')) {
+    pushToast({ title: 'New schedule', body: 'Schedule editor opens in v1.1 — for now edit in JSON config', kind: 'warn' });
+  }
+});
+
+// Initial connect helper — prompt for host on first run.
+setTimeout(() => {
+  if (!API.host) {
+    pushToast({
+      title: 'Set device host to connect',
+      body: 'Enter http://<arduino-ip> in the top-right input',
+      kind: 'warn'
+    });
+  }
+}, 600);
+</script>
+</body>
+</html>
