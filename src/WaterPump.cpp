@@ -47,6 +47,7 @@ void WaterPump::update()
             Serial.println("[WaterPump] TIMEOUT - Pump forced OFF!");
         }
         off();
+        startCooldown();
     }
 }
 
@@ -125,6 +126,16 @@ bool WaterPump::isTimeoutActive() const
     return getRunTime() > PUMP_MAX_ON_TIME;
 }
 
+bool WaterPump::isCooldownActive() const
+{
+    return _cooldownUntil != 0 && (long)(millis() - _cooldownUntil) < 0;
+}
+
+void WaterPump::startCooldown(unsigned long durationMs)
+{
+    _cooldownUntil = millis() + durationMs;
+}
+
 void WaterPump::resetRunTime()
 {
     _onStartTime = millis();
@@ -135,5 +146,5 @@ bool WaterPump::performSafetyCheck()
     // Add any safety checks here
     // For example: check soil moisture before pumping
     // This prevents overwatering
-    return true;
+    return !isCooldownActive();
 }

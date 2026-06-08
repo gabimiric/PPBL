@@ -35,6 +35,16 @@ public:
     bool isTimeoutActive() const;
 
     /**
+     * Check whether the pump is still in its post-off cooldown window.
+     */
+    bool isCooldownActive() const;
+
+    /**
+     * Start or extend the post-off cooldown window.
+     */
+    void startCooldown(unsigned long durationMs = PUMP_MAX_ON_TIME);
+
+    /**
      * Reset run time counter.
      */
     void resetRunTime();
@@ -42,6 +52,7 @@ public:
 private:
     uint8_t _relayPin;
     unsigned long _onStartTime = 0;
+    unsigned long _cooldownUntil = 0;
 
     /**
      * Perform safety checks before allowing pump to run.
